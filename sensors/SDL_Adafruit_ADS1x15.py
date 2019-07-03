@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+import time
 # mods SwitchDoc Labs May 2016
 from sensors.Adafruit_I2C import Adafruit_I2C
 
