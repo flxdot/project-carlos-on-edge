@@ -101,10 +101,10 @@ while (True):
             "fields": {
                 "vis_lux": vis_Lux,
                 "ir_lux": IR_Lux,
-                "ur_idx": uvIndex,
+                "uv_idx": uvIndex,
                 "vis_raw": vis,
                 "ir_raw": IR,
-                "ur_raw": UV,
+                "uv_raw": UV,
             }
         }
     ]
