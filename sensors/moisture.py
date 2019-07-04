@@ -21,7 +21,7 @@ class CapacitiveSoilMoistureSensor(object):
         :param sps: samples per second
         """
 
-        # store propertie4s
+        # store properties
         self._adconv = ad_converter
         self._chan = channel
         self._sps = sps

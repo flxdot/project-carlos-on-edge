@@ -59,12 +59,18 @@ uv_sensor = SDL_Pi_SI1145()
 
 
 while (True):
-    
+
+    print('\n\n{}'.format(str(datetime.datetime.now())))
+    print('--------------------')
+
     # moisture sensor ####################################################
     volts = soil_sensor.read()
     moisture = soil_sensor.convertVoltageToMoisture(volts)
 
-    print('Moisture: {:.2f}% ({:.4f}V)'.format(moisture, volts))
+
+    print('Moisture: {:.2f}%'.format(moisture))
+    print('Voltage : {:.4f}V'.format(volts))
+    print('--------------------')
 
     # insert data into influxdb
     json_body = [
@@ -86,7 +92,6 @@ while (True):
     ir_raw = uv_sensor.readIR()
     ir_lux = uv_sensor.convertIrToLux(ir_raw)
     uv_idx = uv_sensor.readUVindex()
-    print('--------------------')
     print('Vis     : ' + str(vis_raw))
     print('Vis Lux : ' + str(vis_lux))
     print('IR      : ' + str(ir_raw))
@@ -110,4 +115,4 @@ while (True):
     ]
     dbclient.write_points(json_body)
 
-    time.sleep(10)
+    time.sleep(5)
