@@ -10,6 +10,7 @@ from influxdb import InfluxDBClient
 # moisture sensor
 from sensors.moisture import CapacitiveSoilMoistureSensor
 from sensors.ad_converter import ADS1x15
+from sensors.temperature import DHT
 # uv sensor
 from sensors.light import SDL_Pi_SI1145
 
@@ -54,8 +55,16 @@ dbclient = InfluxDBClient(host=cfg_db['host'], port=port, username=cfg_db['user'
 # select the wanted database
 dbclient.switch_database(cfg_db['database'])
 # Initialise the ADC using the default mode (use default I2C address)
-soil_sensor = CapacitiveSoilMoistureSensor(ADS1x15(), channel=1, sps=16)
+ads = ADS1x15()
+soil_sensors = dict()
+soil_sensors['moisture_sensor'] = CapacitiveSoilMoistureSensor(ads, channel=1, sps=16)
+soil_sensors['moisture_gartenkraeuter_large'] = CapacitiveSoilMoistureSensor(ads, channel=2, sps=16)
+
+# create UV sensor
 uv_sensor = SDL_Pi_SI1145()
+
+# create temp&humi sensor
+temp_sensor = DHT('11', 4)
 
 
 while (True):
@@ -63,28 +72,50 @@ while (True):
     print('\n\n{}'.format(str(datetime.datetime.now())))
     print('--------------------')
 
-    # moisture sensor ####################################################
-    volts = soil_sensor.read()
-    moisture = soil_sensor.convertVoltageToMoisture(volts)
+    # temperature sensor #################################################
+    humi, temp = temp_sensor.read()
 
-
-    print('Moisture: {:.2f}%'.format(moisture))
-    print('Voltage : {:.4f}V'.format(volts))
+    print('Temperature: {:.2f}°C'.format(temp))
+    print('Humidity   : {:.4f}%'.format(humi))
     print('--------------------')
 
     # insert data into influxdb
     json_body = [
         {
-            "measurement": "moisture_sensor",
+            "measurement": 'environment',
             "tags": {},
             "time": str(datetime.datetime.now(datetime.timezone.utc)),
             "fields": {
-                "voltage": volts,
-                "moisture": moisture,
+                "temperature": temp,
+                "humidity": humi,
             }
         }
     ]
     dbclient.write_points(json_body)
+
+    # moisture sensor ####################################################
+    for name, soil_sensor in soil_sensors.items():
+        volts = soil_sensor.read()
+        moisture = soil_sensor.convertVoltageToMoisture(volts)
+
+
+        print('Moisture: {:.2f}%'.format(moisture))
+        print('Voltage : {:.4f}V'.format(volts))
+        print('--------------------')
+
+        # insert data into influxdb
+        json_body = [
+            {
+                "measurement": name,
+                "tags": {},
+                "time": str(datetime.datetime.now(datetime.timezone.utc)),
+                "fields": {
+                    "voltage": volts,
+                    "moisture": moisture,
+                }
+            }
+        ]
+        dbclient.write_points(json_body)
 
     # UV Sensor #########################################################
     vis_raw = uv_sensor.readVisible()
