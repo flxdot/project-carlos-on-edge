@@ -2,7 +2,20 @@
 
 import re
 import smbus2
+from threading import RLock
 
+
+class i2cLock():
+    """Use this i2c lock to prevent simultaneous writing on the i2c bus
+
+    """
+
+    instance = None
+
+    def __new__(cls):  # __new__ always a classmethod
+        if not i2cLock.instance:
+            i2cLock.instance = RLock()
+        return i2cLock.instance
 
 # ===========================================================================
 # Adafruit_I2C Class

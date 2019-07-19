@@ -1,18 +1,34 @@
+#!/usr/bin/python
+
+import time
 import os
 import yaml
-import InfluxClient
+import ifcInflux
+from Environment import Environment
+from Irrigation import Irrigation
+from Pump import PumpControl
+from sensors.i2c import i2cLock
+
+import time
 
 class CarlosOnEdge():
-    class __CarlosOnEdge():
-        """
+    """CarlosOnEdge will take of all those jobs which are not done in the cloud:
+        - gathering information about the plants (moisture level)
+        - gathering information about the plant environments (Sunlight, weather, etc.)
+        - watering your plants
+    """
 
-        """
+    class __CarlosOnEdge():
+        """Private member of the CarlosOnEdge to make sure the CarlosOnEdge is Singleton."""
 
         def __init__(self, config_file: str = 'config.yaml'):
             """
 
             :param config_file: (optional, str) path to the config file. Default is: config.yaml
             """
+
+            # acquire the lock once
+            self._i2c_lock = i2cLock()
 
             # config ###############################
 
@@ -32,20 +48,61 @@ class CarlosOnEdge():
 
             # create classes ########################
 
-            self.db_con = InfluxClient.get_client(self.config)
+            self.environment = Environment(self.config)
 
-            #
+            # create the pump controller before the irrigation loops!
+            self.pump_controller = PumpControl(self.config)
 
-        @staticmethod
-        def validate_config(config: dict):
-            """Checks whether the config is valid. If the config does not contain valid information, a exception will be
-            raised.
+            self.irrigation_loops = Irrigation(self.config)
 
-            :param config: (mandatory, dict) the loaded config as dictionary
+        def start(self):
+            """Vamos! Let carlos start its work.
+
+            - start environment data acquisition
+            - start irrigation loops
+            - start the pump controller
             """
 
-            # check influx config
-            InfluxClient.validate_config(config)
+            self.environment.start()
+            self.irrigation_loops.start()
+            self.pump_controller.start()
+
+        def stop(self):
+            """Tops the data acquisition, moisture control and pump controls"""
+
+            self.environment.stop()
+            self.irrigation_loops.stop()
+            self.pump_controller.stop()
+
+        def wait(self):
+            """Wait until carlos has done it's job.
+
+            Note: This will never be the case since carlos will wait for all """
+
+
+            self.environment.join()
+            self.irrigation_loops.join()
+            self.pump_controller.join()
+
+    @staticmethod
+    def validate_config(config: dict):
+        """Checks whether the config is valid. If the config does not contain valid information, a exception will be
+        raised.
+
+        :param config: (mandatory, dict) the loaded config as dictionary
+        """
+
+        # influxdb
+        ifcInflux.validate_config(config)
+
+        # environment
+        Environment.validate_config(config)
+
+        # irrigation-loops
+        Irrigation.validate_config(config)
+
+        # pumps
+        PumpControl.validate_config(config)
 
     instance = None
 
