@@ -1,10 +1,14 @@
+#!/usr/bin/python
+
 import sys
 import time
 import RPi.GPIO as GPIO
 
+from sensors.auxiliary import SmartSensor
+
 usleep = lambda x: time.sleep(x / 1000000.0)
 
-class SeeedUltraSonicRanger(object):
+class SeeedUltraSonicRanger(SmartSensor):
     """Do distance measurements with the Seeed Ultrasonic Ranger.
 
 
@@ -97,3 +101,12 @@ class SeeedUltraSonicRanger(object):
             dist = self._get_distance()
             if dist:
                 return dist
+
+    def measure(self):
+        """Performs a measurement and returns all available values in a dictionary.
+        The keys() are the names of the measurement and the values the corresponding values.
+
+        :return: dict
+        """
+
+        return {'distance': self.get_distance()}

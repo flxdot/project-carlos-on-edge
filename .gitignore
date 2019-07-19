@@ -1,3 +1,9 @@
+# never store the config
+config.yaml
+
+# special development case when developing not on raspberrypi
+RPi/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

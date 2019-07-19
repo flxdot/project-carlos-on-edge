@@ -1,5 +1,5 @@
 smbus2
 influxdb
 numpy
-RPi.GPIO
 PyYAML
+RPi.GPIO

@@ -1,7 +1,9 @@
 #!/usr/bin/python
 
+from sensors.auxiliary import SmartSensor
+from sensors.ad_converter import ADConverter
 
-class CapacitiveSoilMoistureSensor(object):
+class CapacitiveSoilMoistureSensor(SmartSensor):
     """This class is an interface to the Capacitive Soil Moisture Sensor v1.2"""
 
     # the PGA of the capacitive moisture sensor
@@ -13,16 +15,16 @@ class CapacitiveSoilMoistureSensor(object):
     # the max voltage the sensor will return
     __MAX_VOLTAGE = 2.5
 
-    def __init__(self, ad_converter, channel, sps=250):
+    def __init__(self, address, channel, sps=250):
         """Constructor
 
-        :param ad_converter: (mandatory, sensors.ad_converter.ADS1x15) object to interface the A/D converter
+        :param address: (mandatory, hex) the i2c address of the ADS1x15 a/d converter
         :param channel: (mandatory, uint) the channel to which the sensor is connected to
         :param sps: samples per second
         """
 
         # store properties
-        self._adconv = ad_converter
+        self._adconv = ADConverter(address)
         self._chan = channel
         self._sps = sps
 
@@ -50,3 +52,53 @@ class CapacitiveSoilMoistureSensor(object):
         """
 
         return self.convertVoltageToMoisture(self.read())
+
+    def measure(self):
+        """Performs a measurement and returns all available values in a dictionary.
+        The keys() are the names of the measurement and the values the corresponding values.
+
+        :return: dict
+        """
+
+        volts = self.read()
+        moisture = self.convertVoltageToMoisture(volts)
+
+        return {'volts': float(volts), 'percentage': float(moisture)}
+
+    @classmethod
+    def from_config(cls, config: dict):
+        """Alternative constructor to obtain a moisture sensor based on the given config
+
+        :param config: (mandatory, dict) the loaded config as dictionary
+        :return: CapacitiveSoilMoistureSensor
+        """
+
+        return cls(address=config['i2c-address'], channel=config['channel'])
+
+    @staticmethod
+    def validate_config(config: dict):
+        """Checks whether the config is valid. If the config does not contain valid information, a exception will be
+        raised.
+
+        :param config: (mandatory, dict) the loaded config as dictionary
+        :raises KeyError: Config did not contain mandatory fields
+        :raises ValueError: Config did not contain valid information
+        """
+
+        # i2c-address ######################
+
+        # key existing?
+        if 'i2c-address' not in config.keys():
+            raise KeyError('Config is missing mandatory field ''i2c-address''.')
+
+        # check value
+        ADConverter.validate_config(config['i2c-address'])
+
+        # channel ##########################
+
+        # key existing?
+        if 'channel' not in config.keys():
+            raise KeyError('Config is missing mandatory field ''channel''.')
+
+        # check value
+        ADConverter._types[config['i2c-address']].validate_channel(config['channel'])

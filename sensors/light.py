@@ -2,9 +2,37 @@
 
 import time
 import smbus2
+from sensors.i2c import i2cLock
+
+from sensors.auxiliary import SmartSensor
+
+def validate_config(type: str):
+    """Checks if all required parameter are available in the passed config dictionary.
+
+    :param type: (mandatory, str) type of the light sensor
+    :return: None
+    :raises ValueError: When the passed type was not found.
+    """
+
+    if type.upper() != 'SDL_Pi_SI1145' and type.upper() != 'SI1145':
+        raise ValueError(f'Light Sensor {type} is not supported.')
 
 
-class SDL_Pi_SI1145(object):
+def get_sensor(type: str):
+    """Returns a instance of a Light sensor based on the given type
+
+    :param type: (mandatory, str) type of the light sensor
+    :return: None
+    :raises ValueError: When the passed type was not found.
+    """
+
+    if type.upper() == 'SDL_Pi_SI1145' or type.upper() == 'SI1145':
+        return SDL_Pi_SI1145()
+    else:
+        raise ValueError(f'Light Sensor {type} is not supported.')
+
+
+class SDL_Pi_SI1145(SmartSensor):
     """Interface to the SI1145 UV Light Sensor by Adafruit.
 
     Note: This sensor has a static I2C Address of 0x60.
@@ -163,6 +191,9 @@ class SDL_Pi_SI1145(object):
         """Constructor.
         """
 
+        # store lock
+        self._lock = i2cLock()
+
         # Create I2C device.
         self._device = smbus2.SMBus(1)
 
@@ -179,99 +210,108 @@ class SDL_Pi_SI1145(object):
         :return:
         """
 
-        self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_MEASRATE0, 0)
-        self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_MEASRATE1, 0)
-        self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_IRQEN, 0)
-        self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_IRQMODE1, 0)
-        self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_IRQMODE2, 0)
-        self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_INTCFG, 0)
-        self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_IRQSTAT, 0xFF)
+        # acquire the i2cLock to allow proper multi threading
+        with self._lock:
+            self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_MEASRATE0, 0)
+            self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_MEASRATE1, 0)
+            self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_IRQEN, 0)
+            self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_IRQMODE1, 0)
+            self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_IRQMODE2, 0)
+            self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_INTCFG, 0)
+            self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_IRQSTAT, 0xFF)
 
-        self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_COMMAND, SDL_Pi_SI1145.RESET)
-        time.sleep(.01)
-        self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_HWKEY, 0x17)
-        time.sleep(.01)
+            self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_COMMAND, SDL_Pi_SI1145.RESET)
+            time.sleep(.01)
+            self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_HWKEY, 0x17)
+            time.sleep(.01)
 
     # write Param
     def writeParam(self, p, v):
         """Write Parameter to the Sensor."""
 
-        self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_PARAMWR, v)
-        self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_COMMAND, p | SDL_Pi_SI1145.PARAM_SET)
-        paramVal = self._device.read_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_PARAMRD)
+        # acquire the i2cLock to allow proper multi threading
+        with self._lock:
+            self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_PARAMWR, v)
+            self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_COMMAND, p | SDL_Pi_SI1145.PARAM_SET)
+            paramVal = self._device.read_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_PARAMRD)
         return paramVal
 
     # load calibration to sensor
     def _load_calibration(self):
         """Load calibration data."""
 
-        # /***********************************/
-        # Enable UVindex measurement coefficients!
-        self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_UCOEFF0, 0x29)
-        self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_UCOEFF1, 0x89)
-        self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_UCOEFF2, 0x02)
-        self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_UCOEFF3, 0x00)
+        # acquire the i2cLock to allow proper multi threading
+        with self._lock:
+            # /***********************************/
+            # Enable UVindex measurement coefficients!
+            self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_UCOEFF0, 0x29)
+            self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_UCOEFF1, 0x89)
+            self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_UCOEFF2, 0x02)
+            self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_UCOEFF3, 0x00)
 
-        # Enable UV sensor
-        self.writeParam(SDL_Pi_SI1145.PARAM_CHLIST,
-                        SDL_Pi_SI1145.PARAM_CHLIST_ENUV | SDL_Pi_SI1145.PARAM_CHLIST_ENALSIR | SDL_Pi_SI1145.PARAM_CHLIST_ENALSVIS | SDL_Pi_SI1145.PARAM_CHLIST_ENPS1)
+            # Enable UV sensor
+            self.writeParam(SDL_Pi_SI1145.PARAM_CHLIST,
+                            SDL_Pi_SI1145.PARAM_CHLIST_ENUV | SDL_Pi_SI1145.PARAM_CHLIST_ENALSIR | SDL_Pi_SI1145.PARAM_CHLIST_ENALSVIS | SDL_Pi_SI1145.PARAM_CHLIST_ENPS1)
 
-        # Enable interrupt on every sample
-        self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_INTCFG, SDL_Pi_SI1145.REG_INTCFG_INTOE)
-        self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_IRQEN,
-                                     SDL_Pi_SI1145.REG_IRQEN_ALSEVERYSAMPLE)
+            # Enable interrupt on every sample
+            self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_INTCFG, SDL_Pi_SI1145.REG_INTCFG_INTOE)
+            self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_IRQEN,
+                                         SDL_Pi_SI1145.REG_IRQEN_ALSEVERYSAMPLE)
 
-        # /****************************** Prox Sense 1 */
+            # /****************************** Prox Sense 1 */
 
-        # Program LED current
-        self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_PSLED21, 0x03)  # 20mA for LED 1 only
-        self.writeParam(SDL_Pi_SI1145.PARAM_PS1ADCMUX, SDL_Pi_SI1145.PARAM_ADCMUX_LARGEIR)
+            # Program LED current
+            self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_PSLED21, 0x03)  # 20mA for LED 1 only
+            self.writeParam(SDL_Pi_SI1145.PARAM_PS1ADCMUX, SDL_Pi_SI1145.PARAM_ADCMUX_LARGEIR)
 
-        # Prox sensor #1 uses LED #1
-        self.writeParam(SDL_Pi_SI1145.PARAM_PSLED12SEL, SDL_Pi_SI1145.PARAM_PSLED12SEL_PS1LED1)
+            # Prox sensor #1 uses LED #1
+            self.writeParam(SDL_Pi_SI1145.PARAM_PSLED12SEL, SDL_Pi_SI1145.PARAM_PSLED12SEL_PS1LED1)
 
-        # Fastest clocks, clock div 1
-        self.writeParam(SDL_Pi_SI1145.PARAM_PSADCGAIN, 0)
+            # Fastest clocks, clock div 1
+            self.writeParam(SDL_Pi_SI1145.PARAM_PSADCGAIN, 0)
 
-        # Take 511 clocks to measure
-        self.writeParam(SDL_Pi_SI1145.PARAM_PSADCOUNTER, SDL_Pi_SI1145.PARAM_ADCCOUNTER_511CLK)
+            # Take 511 clocks to measure
+            self.writeParam(SDL_Pi_SI1145.PARAM_PSADCOUNTER, SDL_Pi_SI1145.PARAM_ADCCOUNTER_511CLK)
 
-        # in prox mode, high range
-        self.writeParam(SDL_Pi_SI1145.PARAM_PSADCMISC,
-                        SDL_Pi_SI1145.PARAM_PSADCMISC_RANGE | SDL_Pi_SI1145.PARAM_PSADCMISC_PSMODE)
-        self.writeParam(SDL_Pi_SI1145.PARAM_ALSIRADCMUX, SDL_Pi_SI1145.PARAM_ADCMUX_SMALLIR)
+            # in prox mode, high range
+            self.writeParam(SDL_Pi_SI1145.PARAM_PSADCMISC,
+                            SDL_Pi_SI1145.PARAM_PSADCMISC_RANGE | SDL_Pi_SI1145.PARAM_PSADCMISC_PSMODE)
+            self.writeParam(SDL_Pi_SI1145.PARAM_ALSIRADCMUX, SDL_Pi_SI1145.PARAM_ADCMUX_SMALLIR)
 
-        # Fastest clocks, clock div 1
-        self.writeParam(SDL_Pi_SI1145.PARAM_ALSIRADCGAIN, 0)
-        # self.writeParam(SDL_Pi_SI1145.PARAM_ALSIRADCGAIN, 4)
+            # Fastest clocks, clock div 1
+            self.writeParam(SDL_Pi_SI1145.PARAM_ALSIRADCGAIN, 0)
+            # self.writeParam(SDL_Pi_SI1145.PARAM_ALSIRADCGAIN, 4)
 
-        # Take 511 clocks to measure
-        self.writeParam(SDL_Pi_SI1145.PARAM_ALSIRADCOUNTER, SDL_Pi_SI1145.PARAM_ADCCOUNTER_511CLK)
+            # Take 511 clocks to measure
+            self.writeParam(SDL_Pi_SI1145.PARAM_ALSIRADCOUNTER, SDL_Pi_SI1145.PARAM_ADCCOUNTER_511CLK)
 
-        # in high range mode
-        self.writeParam(SDL_Pi_SI1145.PARAM_ALSIRADCMISC, 0)
-        # self.writeParam(SDL_Pi_SI1145.PARAM_ALSIRADCMISC, SDL_Pi_SI1145.PARAM_ALSIRADCMISC_RANGE)
+            # in high range mode
+            self.writeParam(SDL_Pi_SI1145.PARAM_ALSIRADCMISC, 0)
+            # self.writeParam(SDL_Pi_SI1145.PARAM_ALSIRADCMISC, SDL_Pi_SI1145.PARAM_ALSIRADCMISC_RANGE)
 
-        # fastest clocks, clock div 1
-        self.writeParam(SDL_Pi_SI1145.PARAM_ALSVISADCGAIN, 0)
-        # self.writeParam(SDL_Pi_SI1145.PARAM_ALSVISADCGAIN, 4)
+            # fastest clocks, clock div 1
+            self.writeParam(SDL_Pi_SI1145.PARAM_ALSVISADCGAIN, 0)
+            # self.writeParam(SDL_Pi_SI1145.PARAM_ALSVISADCGAIN, 4)
 
-        # Take 511 clocks to measure
-        self.writeParam(SDL_Pi_SI1145.PARAM_ALSVISADCOUNTER, SDL_Pi_SI1145.PARAM_ADCCOUNTER_511CLK)
+            # Take 511 clocks to measure
+            self.writeParam(SDL_Pi_SI1145.PARAM_ALSVISADCOUNTER, SDL_Pi_SI1145.PARAM_ADCCOUNTER_511CLK)
 
-        # in high range mode (not normal signal)
-        # self.writeParam(SDL_Pi_SI1145.PARAM_ALSVISADCMISC, SDL_Pi_SI1145.PARAM_ALSVISADCMISC_VISRANGE)
-        self.writeParam(SDL_Pi_SI1145.PARAM_ALSVISADCMISC, 0)
+            # in high range mode (not normal signal)
+            # self.writeParam(SDL_Pi_SI1145.PARAM_ALSVISADCMISC, SDL_Pi_SI1145.PARAM_ALSVISADCMISC_VISRANGE)
+            self.writeParam(SDL_Pi_SI1145.PARAM_ALSVISADCMISC, 0)
 
-        # measurement rate for auto
-        self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_MEASRATE0, 0xFF)  # 255 * 31.25uS = 8ms
+            # measurement rate for auto
+            self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_MEASRATE0, 0xFF)  # 255 * 31.25uS = 8ms
 
-        # auto run
-        self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_COMMAND, SDL_Pi_SI1145.PSALS_AUTO)
+            # auto run
+            self._device.write_byte_data(SDL_Pi_SI1145.ADDR, SDL_Pi_SI1145.REG_COMMAND, SDL_Pi_SI1145.PSALS_AUTO)
 
     def readIR(self):
         """returns IR light levels"""
-        data = self._device.read_i2c_block_data(SDL_Pi_SI1145.ADDR, 0x24, 2)
+
+        # acquire the i2cLock to allow proper multi threading
+        with self._lock:
+            data = self._device.read_i2c_block_data(SDL_Pi_SI1145.ADDR, 0x24, 2)
         return data[1] * 256 + data[0]
 
     def readIRLux(self):
@@ -281,14 +321,18 @@ class SDL_Pi_SI1145(object):
 
     def readProx(self):
         """Returns "Proximity" - assumes an IR LED is attached to LED"""
-        data = self._device.read_i2c_block_data(SDL_Pi_SI1145.ADDR, 0x26, 2)
+
+        # acquire the i2cLock to allow proper multi threading
+        with self._lock:
+            data = self._device.read_i2c_block_data(SDL_Pi_SI1145.ADDR, 0x26, 2)
         return data[1] * 256 + data[0]
 
     def readUV(self):
         """Returns the UV index * 100 (divide by 100 to get the index)
         """
-
-        data = self._device.read_i2c_block_data(SDL_Pi_SI1145.ADDR, 0x2C, 2)
+        # acquire the i2cLock to allow proper multi threading
+        with self._lock:
+            data = self._device.read_i2c_block_data(SDL_Pi_SI1145.ADDR, 0x2C, 2)
         # apply additional calibration of /10 based on sunlight
         return (data[1] * 256 + data[0]) / 10
 
@@ -299,7 +343,10 @@ class SDL_Pi_SI1145(object):
 
     def readVisible(self):
         """returns visible + IR light levels"""
-        data = self._device.read_i2c_block_data(SDL_Pi_SI1145.ADDR, 0x22, 2)
+
+        # acquire the i2cLock to allow proper multi threading
+        with self._lock:
+            data = self._device.read_i2c_block_data(SDL_Pi_SI1145.ADDR, 0x22, 2)
         return data[1] * 256 + data[0]
 
     def readVisibleLux(self):
@@ -409,3 +456,20 @@ class SDL_Pi_SI1145(object):
         # calibration to bright sunlight added
         vislux = vis * (gain / (lux * multiplier)) * 100
         return vislux
+
+    def measure(self):
+        """Performs a measurement and returns all available values in a dictionary.
+        The keys() are the names of the measurement and the values the corresponding values.
+
+        :return: dict
+        """
+
+        vis_raw = self.readVisible()
+        vis_lux = self.convertVisibleToLux(vis_raw)
+        ir_raw = self.readIR()
+        ir_lux = self.convertIrToLux(ir_raw)
+        uv_idx = self.readUVindex()
+
+        return {'visual-light-raw': float(vis_raw), 'visual-light': float(vis_lux),
+                'infrared-light-raw': float(ir_raw), 'infrared-light': float(ir_lux),
+                'uv-index': float(uv_idx)}

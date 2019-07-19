@@ -1,41 +1,153 @@
+#!/usr/bin/python
+
 import RPi.GPIO as GPIO
 from time import sleep
+from enum import Enum
 
+from sensors.auxiliary import SmartSensor
 
-# from grove.helper import *
 def set_max_priority(): pass
-
-
 def set_default_priority(): pass
 
+def validate_config(config: dict):
+    """Checks if all required parameter are available in the passed config dictionary.
 
-class DHT(object):
+    :param config: (mandatory, dict) the config dictionary of the sensor
+    :return: None
+    :raises ValueError: When the type is not found or a invalid GPIO pin is configured
+    :raises KeyError: When a mandatory key in the config dictionary is not available
+    """
+
+    if 'type' not in config.keys():
+        raise KeyError('Config dictionary is missing mandatory field ''type''.')
+
+    # check if the DHT type is correct
+    try:
+        DHTtype.from_val(config['type'])
+
+        # check if the gpio-pin property is available
+        if 'gpio-pin' not in config.keys():
+            raise KeyError('Config dictionary is missing mandatory field ''gpio-pin''.')
+
+        if config['gpio-pin'] not in list(range(1, 27)):
+            the_pin = config['gpio-pin']
+            raise ValueError(f'{the_pin} is not a valid GPIO pin. Please select any from 1 to 27.')
+
+    except TypeError:
+        raise ValueError('Temperature sensor type invalid.')
+    except ValueError:
+        raise ValueError('Temperature sensor type invalid.')
+
+
+def get_sensor(config: dict):
+    """Returns a instance of a Light sensor based on the given type
+
+    :param type: (mandatory, dict) the config dictionary defining the temperature sensor
+    :return: None
+    :raises ValueError: When the passed type was not found.
+    """
+
+    try:
+        return DHT(dht_type=DHTtype.from_val(config['type']),
+                   pin=config['gpio-pin'])
+    except TypeError:
+        return None
+    except ValueError:
+        return None
+    except KeyError:
+        return None
+
+
+class DHTtype(Enum):
+
+    DHT11 = 0
+    DHT22 = 1
+
+    @classmethod
+    def from_val(cls, val):
+        """Return an instance of the DHTtype based on the input
+
+        :param val: (mandatory, DHTtype, str, int, float) the value which shall be interpreted as DHTtype.
+        :return: DHTtype
+        :raises TypeError: When val is of any other type than the described above.
+        """
+
+        if isinstance(val, DHTtype):
+            return val
+        elif isinstance(val, str):
+            return DHTtype.from_str(val)
+        elif isinstance(val, (int, float)):
+            return DHTtype.from_num(val)
+        else:
+            TypeError(f'Can not determine the DHT type from input of type {type(val).__name__}.')
+
+    @classmethod
+    def from_str(cls, val: str):
+        """Return an instance of the DHTtype based on the given string.
+
+        :param val: (mandatory, str) the value which shall be interpreted as DHTtype.
+        :return: DHTtype
+        :raises TypeError: When val is of any other type than the described above.
+        :raises ValueError: When the val can not be interpreted
+        """
+
+        if not isinstance(val, str):
+            raise TypeError(f'This method is used to determine the DHT type based on a str input. You passed a value of '
+                            f'type ''{type(val).__name__}''.')
+
+        # allow case insensitive
+        val = val.lower()
+
+        if val == '11' or val == 'dht11':
+            return DHTtype.DHT11
+        elif val == '22' or val == 'dht22':
+            return DHTtype.DHT22
+        else:
+            raise ValueError(f'Unknown DHT Type ''{val}''.')
+
+    @classmethod
+    def from_num(cls, val: [float, int]):
+        """Return an instance of the DHTtype based on the given number.
+
+        :param val: (mandatory, int or float) the value which shall be interpreted as DHTtype.
+        :return: DHTtype
+        :raises TypeError: When val is of any other type than the described above.
+        :raises ValueError: When the val can not be interpreted
+        """
+
+        if not isinstance(val, (int, float)):
+            raise TypeError(
+                f'This method is used to determine the DHT type based on a int or float input. You passed a value of '
+                f'type ''{type(val).__name__}''.')
+
+        # allow case insensitive
+        val = val.lower()
+
+        if val == 11:
+            return DHTtype.DHT11
+        elif val == 22:
+            return DHTtype.DHT22
+        else:
+            raise ValueError(f'Unknown DHT Type ''{val}''.')
+
+
+class DHT(SmartSensor):
     """Code for Temperature & Humidity Sensor of Seeed Studio.
 
-    Code is orignally from, but modified to my needs:
+    Code is originally from, but modified to my needs:
     http://wiki.seeedstudio.com/Grove-TemperatureAndHumidity_Sensor/
     """
 
     PULSES_CNT = 41
 
-    DHT_TYPE = {
-        'DHT11': '11',
-        'DHT22': '22'
-    }
-
     MAX_CNT = 320
 
-    def __init__(self, dht_type, pin):
+    def __init__(self, dht_type: [DHTtype, str, int], pin: int):
         """
 
-        :param dht_type: either 11 for  or 22
+        :param dht_type: either DHTtype.DHT11 or DHTtype.22
         :param pin: gpio pin where the sensor is connected to
         """
-
-        # check the dht type
-        if dht_type != self.DHT_TYPE['DHT11'] and dht_type != self.DHT_TYPE['DHT22']:
-            print('ERROR: Please use 11|22 as dht type.')
-            exit(1)
 
         # store the pin and type
         self.pin = pin
@@ -52,7 +164,7 @@ class DHT(object):
 
     @dht_type.setter
     def dht_type(self, type):
-        self._dht_type = type
+        self._dht_type = DHTtype.from_val(type)
         self._last_temp = 0.0
         self._last_humi = 0.0
 
@@ -137,10 +249,10 @@ class DHT(object):
             data = data[0: self.PULSES_CNT - 2] + ('1' if data4 & 0x01 else '0')
 
         if data4 == ((data0 + data1 + data2 + data3) & 0xFF):
-            if self._dht_type == self.DHT_TYPE['DHT11']:
+            if self._dht_type == DHTtype.DHT11:
                 humi = int(data0)
                 temp = int(data2)
-            elif self._dht_type == self.DHT_TYPE['DHT22']:
+            elif self._dht_type == DHTtype.DHT22:
                 humi = float(int(data[0:16], 2) * 0.1)
                 temp = float(int(data[17:32], 2) * 0.2 * (0.5 - int(data[16], 2)))
         else:
@@ -158,3 +270,15 @@ class DHT(object):
             return self._last_humi, self._last_temp
         self._last_humi, self._last_temp = humi, temp
         return humi, temp
+
+
+    def measure(self):
+        """Performs a measurement and returns all available values in a dictionary.
+        The keys() are the names of the measurement and the values the corresponding values.
+
+        :return: dict
+        """
+
+        humi, temp = self.read()
+
+        return {'humidity': float(humi), 'temperature': float(temp)}
