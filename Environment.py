@@ -7,7 +7,6 @@ from sensors.temperature import validate_config as validate_temp_config
 from sensors.temperature import get_sensor as get_temp_sensor
 from ifcInflux import InfluxAttachedSensor, get_client
 
-
 class Environment(object):
     """The Environment will record the environment conditions of the plants like Sunlight intensity, UV index,
     Temperature, Humidity, Weather Forecast.
@@ -19,6 +18,8 @@ class Environment(object):
         :param config: (mandatory, dictionary)
         """
 
+        from CarlosOnEdge import SENSOR_PERIOD
+
         # list of all environment sensors
         self.sensors = list()
 
@@ -28,14 +29,14 @@ class Environment(object):
 
             # uv-light sensor
             if 'uv-light' in env_cfg.keys():
-                the_sensor = InfluxAttachedSensor(name='uv-light', period=10, measurement='environment',
+                the_sensor = InfluxAttachedSensor(name='uv-light', period=SENSOR_PERIOD, measurement='environment',
                                                   sensor=get_light_sensor(env_cfg['uv-light']),
                                                   dbclient=get_client(config))
                 self.sensors.append(the_sensor)
 
             # temp & humidity sensor
             if 'temp-humi' in env_cfg.keys():
-                the_sensor = InfluxAttachedSensor(name='temp-humi', period=10, measurement='environment',
+                the_sensor = InfluxAttachedSensor(name='temp-humi', period=SENSOR_PERIOD, measurement='environment',
                                                   sensor=get_temp_sensor(env_cfg['temp-humi']),
                                                   dbclient=get_client(config))
                 self.sensors.append(the_sensor)

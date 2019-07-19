@@ -4,7 +4,6 @@ import time
 from ifcInflux import InfluxAttachedSensor, get_client
 from sensors.moisture import CapacitiveSoilMoistureSensor
 
-
 class Irrigation():
     """"""
 
@@ -71,6 +70,7 @@ class IrrigationLoop():
         :param config: (mandatory, dictionary) the config of the irrigation loop
         :param main_config: (mandatory, dictionary) the general config (required to build a db client)
         """
+        from CarlosOnEdge import SENSOR_PERIOD
 
         self.name = name
 
@@ -78,7 +78,7 @@ class IrrigationLoop():
         measurement = f'irrigation-loop-{name}'
 
         # the moisture sensor
-        self.moisture_sensor = InfluxAttachedSensor(name=f'{name}-moisture-sensor', period=10, measurement=measurement,
+        self.moisture_sensor = InfluxAttachedSensor(name=f'{name}-moisture-sensor', period=SENSOR_PERIOD, measurement=measurement,
                                                     sensor=CapacitiveSoilMoistureSensor.from_config(
                                                         config['moisture-sensor']),
                                                     dbclient=get_client(main_config))

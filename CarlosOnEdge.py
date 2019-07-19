@@ -9,7 +9,7 @@ from Irrigation import Irrigation
 from Pump import PumpControl
 from sensors.i2c import i2cLock
 
-import time
+SENSOR_PERIOD = 5
 
 class CarlosOnEdge():
     """CarlosOnEdge will take of all those jobs which are not done in the cloud:

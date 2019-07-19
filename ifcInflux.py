@@ -131,6 +131,7 @@ class InfluxAttachedSensor(DbAttachedSensor):
             cur_sample['tags'] = tags
             # set the timestamp
             cur_sample['time'] = str(tstamp)
+            print(tstamp)
 
             # single field?
             fields = dict()
@@ -170,7 +171,7 @@ class InfluxAttachedSensor(DbAttachedSensor):
         values = list(data.values())
 
         # store the data in the buffer
-        self.add_data(field=fields, value=values)
+        self.add_data(field=fields, value=values, timestamp=datetime.now(timezone.utc))
 
     def print_sensor_data(self, sensor_data: dict):
         """Prints the sensor data into the command line.

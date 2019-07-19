@@ -5,7 +5,6 @@ from threading import RLock
 from sensors.i2c import Adafruit_I2C, i2cLock
 
 
-
 class ADS1x15:
     # ===========================================================================
     # ADS1x15 Class
@@ -243,7 +242,11 @@ class ADS1x15:
 
         # print(f'readADCSingleEnded(channel={channel}, pga={pga}, sps={sps})')
 
-        with self._lock:
+        # acquire the i2cLock to allow proper multi threading
+        with self._i2c_lock:
+
+            #print(f'readADCSingleEnded(channel={channel}, pga={pga}, sps={sps})')
+            #time.sleep(0.05)
 
             # With invalid channel return -1
             if (channel > 3):
@@ -291,18 +294,16 @@ class ADS1x15:
             # Write config register to the ADC
             bytes = [(config >> 8) & 0xFF, config & 0xFF]
 
-            # acquire the i2cLock to allow proper multi threading
-            with self._i2c_lock:
-                self.i2c.writeList(self.__ADS1015_REG_POINTER_CONFIG, bytes)
+            self.i2c.writeList(self.__ADS1015_REG_POINTER_CONFIG, bytes)
 
-                # Wait for the ADC conversion to complete
-                # The minimum delay depends on the sps: delay >= 1/sps
-                # We add 0.1ms to be sure
-                delay = 1.0 / sps + 0.0001
-                time.sleep(delay)
+            # Wait for the ADC conversion to complete
+            # The minimum delay depends on the sps: delay >= 1/sps
+            # We add 0.1ms to be sure
+            delay = 1.0 / sps + 0.0001
+            time.sleep(delay)
 
-                # Read the conversion results
-                result = self.i2c.readList(self.__ADS1015_REG_POINTER_CONVERT, 2)
+            # Read the conversion results
+            result = self.i2c.readList(self.__ADS1015_REG_POINTER_CONVERT, 2)
             if (self.ic == self.__IC_ADS1015):
                 # Shift right 4 bits for the 12-bit ADS1015 and convert to mV
                 return (((result[0] << 8) | (result[1] & 0xFF)) >> 4) * pga / 2048.0
