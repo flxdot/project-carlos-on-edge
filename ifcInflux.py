@@ -131,7 +131,6 @@ class InfluxAttachedSensor(DbAttachedSensor):
             cur_sample['tags'] = tags
             # set the timestamp
             cur_sample['time'] = str(tstamp)
-            print(tstamp)
 
             # single field?
             fields = dict()
@@ -139,11 +138,13 @@ class InfluxAttachedSensor(DbAttachedSensor):
                 for field_idx, cur_field in enumerate(field):
                     cur_val = value[field_idx]
                     if sample_cnt == 1:
-                        fields[cur_field] = value[field_idx]
+                        if cur_val is not None:
+                            fields[cur_field] = cur_val
                     elif len(cur_val) < idx:
                         raise ValueError('Found different number of values and timestamps!')
                     elif isinstance(cur_val, list):
-                        fields[cur_field] = value[field_idx][idx]
+                        if cur_val[idx] is not None:
+                            fields[cur_field] = cur_val[idx]
                     else:
                         raise ValueError('Found miss match between timestamp count the value count.')
             else:

@@ -280,5 +280,6 @@ class DHT(SmartSensor):
         """
 
         humi, temp = self.read()
-
+        if humi == 0 and temp == 0:
+            return {'humidity': None, 'temperature': None}
         return {'humidity': float(humi), 'temperature': float(temp)}

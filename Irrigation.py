@@ -27,7 +27,6 @@ class Irrigation():
         """Starts the data acquisition of the environment."""
 
         for sensor in self.loops.values():
-            time.sleep(1)
             sensor.start()
 
     def stop(self):
@@ -90,12 +89,12 @@ class IrrigationLoop():
         # the watering rules
 
     def start(self):
-        """Starts the data acquisition of the environment."""
+        """Starts the data acquisition of the irrigation loop."""
 
         self.moisture_sensor.start()
 
     def stop(self):
-        """Stops the data acquisition of the environment."""
+        """Stops the data acquisition of the irrigation loop."""
 
         self.moisture_sensor.stop()
 

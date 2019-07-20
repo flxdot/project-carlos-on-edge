@@ -6,9 +6,7 @@ from threading import RLock
 
 
 class i2cLock():
-    """Use this i2c lock to prevent simultaneous writing on the i2c bus
-
-    """
+    """Use this i2c lock to prevent simultaneous access of the i2c bus by different threads."""
 
     instance = None
 
