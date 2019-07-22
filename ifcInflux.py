@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 
-from influxdb import InfluxDBClient
+from influxdb import InfluxDBClient, DataFrameClient
 from Auxiliary import DbAttachedSensor
 
 
@@ -51,6 +51,32 @@ def get_client(config: dict):
 
     # create influx db client
     dbclient = InfluxDBClient(host=cfg_db['host'], port=port, username=cfg_db['user'], password=cfg_db['password'])
+
+    # make sure the data base exists (if database exists a new will not be created)
+    dbclient.query(f"CREATE DATABASE {cfg_db['database']}")
+
+    # select the wanted database
+    dbclient.switch_database(cfg_db['database'])
+
+    return dbclient
+
+def get_df_client(config: dict):
+    """Creates a pandas dataframe client based on the passed config dictionary.
+
+    :param config: (mandatory, dict) the loaded configuration.
+    :return: InfluxDBClient
+    """
+
+    cfg_db = config['influxdb']
+
+    # check for optional port
+    if 'port' in cfg_db.keys():
+        port = cfg_db['port']
+    else:
+        port = 8086
+
+    # create influx db client
+    dbclient = DataFrameClient(host=cfg_db['host'], port=port, username=cfg_db['user'], password=cfg_db['password'])
 
     # make sure the data base exists (if database exists a new will not be created)
     dbclient.query(f"CREATE DATABASE {cfg_db['database']}")
@@ -184,7 +210,10 @@ class InfluxAttachedSensor(DbAttachedSensor):
         max_field_len = max([len(x) for x in sensor_data.keys()])
         output = f'### {self.name} {"".ljust(max_field_len+9-len(self.name), "#")}'
         for key, val in sensor_data.items():
-            output += f"\n{str(key).ljust(max_field_len, ' ')} : {val:.2f}"
+            if isinstance(val, (float, int)) and not isinstance(val, bool):
+                output += f"\n{str(key).ljust(max_field_len, ' ')} : {val:.2f}"
+            else:
+                output += f"\n{str(key).ljust(max_field_len, ' ')} : {val}"
         output += '\n'.ljust(max_field_len+15, '#') + '\n'
         print(output)
 

@@ -66,7 +66,7 @@ class IrrigationLoop():
     def __init__(self, name: str, config: dict, main_config: dict):
         """
 
-        :param name: (mandatory, str) The name if the irrigation loop
+        :param name: (mandatory, str) The name of the irrigation loop
         :param config: (mandatory, dictionary) the config of the irrigation loop
         :param main_config: (mandatory, dictionary) the general config (required to build a db client)
         """

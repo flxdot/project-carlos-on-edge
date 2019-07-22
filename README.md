@@ -46,10 +46,10 @@ irrigation-loops:
 pumps:
   - main-pump:
       gpio-pin: 20
-      liquid-level:
+      water-tank:
         gpio-pin: 7
-        level-warning: 25
-        level-alarm: 15
+        low-level-warning: 25
+        low-level-alarm: 15
 
 
 

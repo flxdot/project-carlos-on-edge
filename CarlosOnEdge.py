@@ -30,6 +30,12 @@ class CarlosOnEdge():
             # acquire the lock once
             self._i2c_lock = i2cLock()
 
+            # prepare attributes
+            self.config = dict()
+            self.environment = None
+            self.irrigation_loops = None
+            self.pump_controller = None
+
             # config ###############################
 
             # does the file exist?
@@ -40,14 +46,13 @@ class CarlosOnEdge():
             # store the inputs
             self._cfg_file = config_file
 
-            with open('config.yaml', 'r') as document:
-                self.config = yaml.safe_load(document)
+            # read the config file
+            self.config = self.read_config()
 
-            # valid date the config
+            # validate the config
             CarlosOnEdge.validate_config(self.config)
 
             # create classes ########################
-
             self.environment = Environment(self.config)
 
             # create the pump controller before the irrigation loops!
@@ -79,10 +84,19 @@ class CarlosOnEdge():
 
             Note: This will never be the case since carlos will wait for all """
 
-
             self.environment.join()
             self.irrigation_loops.join()
             self.pump_controller.join()
+
+        def read_config(self):
+            """Reads the config from the configured file.
+
+            :return:
+            """
+
+            # read the config
+            with open(self._cfg_file, 'r') as document:
+                return yaml.safe_load(document)
 
     @staticmethod
     def validate_config(config: dict):
