@@ -95,8 +95,8 @@ while (True):
 
     # moisture sensor ####################################################
     for name, soil_sensor in soil_sensors.items():
-        volts = soil_sensor.read()
-        moisture = soil_sensor.convertVoltageToMoisture(volts)
+        volts = soil_sensor._read()
+        moisture = soil_sensor._convertVoltageToMoisture(volts)
 
 
         print('Moisture: {:.2f}%'.format(moisture))

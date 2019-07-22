@@ -15,6 +15,13 @@ class CapacitiveSoilMoistureSensor(SmartSensor):
     # the max voltage the sensor will return
     __MAX_VOLTAGE = 2.5
 
+    # the minimum voltage which will be interpreted as valid reading
+    __MIN_VALID_VOLTAGE = 1
+
+    # the max voltage which will be interpreted as valid reading
+    __MAX_VALID_VOLTAGE = 3
+
+
     def __init__(self, address, channel, sps=250):
         """Constructor
 
@@ -28,7 +35,10 @@ class CapacitiveSoilMoistureSensor(SmartSensor):
         self._chan = channel
         self._sps = sps
 
-    def convertVoltageToMoisture(self, v):
+        # perform a first read because some time there seems to be some sort of glitch where the internal memory
+        self._read()
+
+    def _convertVoltageToMoisture(self, v):
         """Converts the voltage values to moisture level.
 
         :param v: (mandatory, float) voltage in V
@@ -38,7 +48,7 @@ class CapacitiveSoilMoistureSensor(SmartSensor):
         return 1 - ((v - self.__MIN_VOLTAGE) / (self.__MAX_VOLTAGE - self.__MIN_VOLTAGE))
 
 
-    def read(self):
+    def _read(self):
         """Reads the sensor voltage."""
 
         # convert from mV to V
@@ -51,7 +61,13 @@ class CapacitiveSoilMoistureSensor(SmartSensor):
         1: Dipped in water
         """
 
-        return self.convertVoltageToMoisture(self.read())
+        # read the voltage
+        volts = self._read()
+        # check if the values are within boundaries one would expect
+        if volts < self.__MIN_VALID_VOLTAGE or volts > self.__MAX_VALID_VOLTAGE:
+            return None
+        # return the converted voltage value
+        return self._convertVoltageToMoisture(volts)
 
     def measure(self):
         """Performs a measurement and returns all available values in a dictionary.
@@ -60,8 +76,14 @@ class CapacitiveSoilMoistureSensor(SmartSensor):
         :return: dict
         """
 
-        volts = self.read()
-        moisture = self.convertVoltageToMoisture(volts)
+        # read the voltage
+        volts = self._read()
+        # check if the values are within boundaries one would expect
+        if volts < self.__MIN_VALID_VOLTAGE or volts > self.__MAX_VALID_VOLTAGE:
+            return {'volts': None, 'percentage': None}
+
+        # convert the volts to moisture level
+        moisture = self._convertVoltageToMoisture(volts)
 
         return {'volts': float(volts), 'percentage': float(moisture)}
 

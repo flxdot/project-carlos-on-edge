@@ -41,12 +41,13 @@ class Timer(Thread):
                 self._timer_logger.exception('Unknown exception while executing ''timer_fcn()''.')
 
             # sleep until the next execution is due
-            with self._timer_lock:
+            with self._timer_lock: # acquire the lock because the timer period may have changed
                 self._timer_next_execution = self._timer_next_execution + self._timer_period
             sleep_time = self._timer_next_execution - time.time()
             if sleep_time > 0:
                 time.sleep(sleep_time)
             else:
+                self._timer_next_execution = time.time() + self._timer_period
                 self._timer_logger.warning(f'Exceeded timer period by {abs(sleep_time)*1000:.2f}ms.')
 
     def set_period(self, period: [float, int]):
