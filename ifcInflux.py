@@ -1,8 +1,9 @@
 #!/usr/bin/python
 
 from datetime import datetime, timezone
+from threading import Lock
 
-from influxdb import InfluxDBClient
+from influxdb import InfluxDBClient, DataFrameClient
 from Auxiliary import DbAttachedSensor
 
 
@@ -60,6 +61,32 @@ def get_client(config: dict):
 
     return dbclient
 
+def get_df_client(config: dict):
+    """Creates a pandas dataframe client based on the passed config dictionary.
+
+    :param config: (mandatory, dict) the loaded configuration.
+    :return: InfluxDBClient
+    """
+
+    cfg_db = config['influxdb']
+
+    # check for optional port
+    if 'port' in cfg_db.keys():
+        port = cfg_db['port']
+    else:
+        port = 8086
+
+    # create influx db client
+    dbclient = DataFrameClient(host=cfg_db['host'], port=port, username=cfg_db['user'], password=cfg_db['password'])
+
+    # make sure the data base exists (if database exists a new will not be created)
+    dbclient.query(f"CREATE DATABASE {cfg_db['database']}")
+
+    # select the wanted database
+    dbclient.switch_database(cfg_db['database'])
+
+    return dbclient
+
 
 class InfluxAttachedSensor(DbAttachedSensor):
     """InfluxAttachedSensor is the super class for every sensor which shall write its data to the InfluxDB."""
@@ -79,7 +106,9 @@ class InfluxAttachedSensor(DbAttachedSensor):
 
         # store the db client
         self._dbclient = dbclient
-        self._measurement = measurement
+        self.measurement = measurement
+
+        self._data_lock = Lock()
 
         # create dummy of the data
         self._db_data = list()
@@ -126,7 +155,7 @@ class InfluxAttachedSensor(DbAttachedSensor):
             # create new sample
             cur_sample = dict()
             # set the measurement
-            cur_sample['measurement'] = self._measurement
+            cur_sample['measurement'] = self.measurement
             # set the tags
             cur_sample['tags'] = tags
             # set the timestamp
@@ -152,7 +181,9 @@ class InfluxAttachedSensor(DbAttachedSensor):
             cur_sample['fields'] = fields
 
             # add the current sample to the data
-            self._db_data.append(cur_sample)
+            if fields:
+                with self._data_lock:
+                    self._db_data.append(cur_sample)
 
     def measure(self):
         """Performs a measurement and stores the obtained data in the _db_data field.
@@ -185,7 +216,10 @@ class InfluxAttachedSensor(DbAttachedSensor):
         max_field_len = max([len(x) for x in sensor_data.keys()])
         output = f'### {self.name} {"".ljust(max_field_len+9-len(self.name), "#")}'
         for key, val in sensor_data.items():
-            output += f"\n{str(key).ljust(max_field_len, ' ')} : {val:.2f}"
+            if isinstance(val, (float, int)) and not isinstance(val, bool):
+                output += f"\n{str(key).ljust(max_field_len, ' ')} : {val:.2f}"
+            else:
+                output += f"\n{str(key).ljust(max_field_len, ' ')} : {val}"
         output += '\n'.ljust(max_field_len+15, '#') + '\n'
         print(output)
 
@@ -195,9 +229,13 @@ class InfluxAttachedSensor(DbAttachedSensor):
         :return:
         """
 
-        # write the data and clear it when ever the writing was successful
-        if self._dbclient.write_points(self._db_data):
-            self._clear_data()
+        with self._data_lock:
+            if not self._db_data:
+                return
+
+            # write the data and clear it when ever the writing was successful
+            if self._dbclient.write_points(self._db_data):
+                self._clear_data()
 
     def _clear_data(self):
         """Internal method to clean up the internal data buffer. Is done when ever the data was written to the db

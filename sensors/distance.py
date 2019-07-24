@@ -56,30 +56,27 @@ class SeeedUltraSonicRanger(SmartSensor):
         GPIO.setup(self._pin, GPIO.IN)
 
         # wait for any previous pulse to end
+        t0 = time.time()
         while GPIO.input(self._pin):
-            pass
+            if time.time() - t0 > SeeedUltraSonicRanger._TIMEOUT:
+                return None
 
         # wait for the pulse to start
         t0 = time.time()
         while not GPIO.input(self._pin):
-            # wait 1 second at most
+            # wait .15 second at most
             if time.time() - t0 > SeeedUltraSonicRanger._TIMEOUT:
-                GPIO.cleanup()
                 return None
 
         # wait for the pulse to stop
         t1 = time.time()
         while GPIO.input(self._pin):
-            # wait 0.2 second at most
+            # wait .15 second at most
             if time.time() - t0 > SeeedUltraSonicRanger._TIMEOUT:
-                GPIO.cleanup()
                 return None
 
         # measure the time it took for the pulse to stop
         t2 = time.time()
-
-        # cleanup
-        GPIO.cleanup()
 
         # calculate the length of the high signal in seconds
         duration = t2 - t1
@@ -91,16 +88,17 @@ class SeeedUltraSonicRanger(SmartSensor):
         # return the distance
         return distance
 
-    def get_distance(self):
+    def get_distance(self, retries=5):
         """Measures the distance to the next object in m.
 
         :return: distance in m
         """
 
-        while True:
+        for cnt in range(retries):
             dist = self._get_distance()
             if dist:
                 return dist
+        return None
 
     def measure(self):
         """Performs a measurement and returns all available values in a dictionary.
