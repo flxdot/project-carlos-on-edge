@@ -177,7 +177,7 @@ class IrrigationLoop(Timer):
 
         if missing_keys:
             missing_keys = [f"'{key}'" for key in missing_keys]
-            raise KeyError(f"Mandatory section {missing_keys.join(', ')} is missing for irrigation-loop {name}.")
+            raise KeyError(f"Mandatory section {', '.join(missing_keys)} is missing for irrigation-loop {name}.")
 
         # moisture-sensor
         CapacitiveSoilMoistureSensor.validate_config(loop_cfg['moisture-sensor'])
@@ -253,7 +253,7 @@ class WateringRule():
 
         if missing_keys:
             missing_keys = [f"'{key}'" for key in missing_keys]
-            raise KeyError(f"Mandatory section {missing_keys.join(', ')} is missing for watering-rule.")
+            raise KeyError(f"Mandatory section {', '.join(missing_keys)} is missing for watering-rule.")
 
         # check the trigger
         if 'low-level' not in config['trigger']:
