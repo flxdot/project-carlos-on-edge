@@ -18,6 +18,9 @@ class CarlosOnEdge():
         - watering your plants
     """
 
+    # handle to the config
+    config = None
+
     class __CarlosOnEdge():
         """Private member of the CarlosOnEdge to make sure the CarlosOnEdge is Singleton."""
 
@@ -48,6 +51,7 @@ class CarlosOnEdge():
 
             # read the config file
             self.config = self.read_config()
+            CarlosOnEdge.config = self.config
 
             # validate the config
             CarlosOnEdge.validate_config(self.config)

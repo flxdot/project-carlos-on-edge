@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 from datetime import datetime, timezone
+from threading import Lock
 
 from influxdb import InfluxDBClient, DataFrameClient
 from Auxiliary import DbAttachedSensor
@@ -107,6 +108,8 @@ class InfluxAttachedSensor(DbAttachedSensor):
         self._dbclient = dbclient
         self._measurement = measurement
 
+        self._data_lock = Lock()
+
         # create dummy of the data
         self._db_data = list()
 
@@ -178,7 +181,9 @@ class InfluxAttachedSensor(DbAttachedSensor):
             cur_sample['fields'] = fields
 
             # add the current sample to the data
-            self._db_data.append(cur_sample)
+            if fields:
+                with self._data_lock:
+                    self._db_data.append(cur_sample)
 
     def measure(self):
         """Performs a measurement and stores the obtained data in the _db_data field.
@@ -224,9 +229,13 @@ class InfluxAttachedSensor(DbAttachedSensor):
         :return:
         """
 
-        # write the data and clear it when ever the writing was successful
-        if self._dbclient.write_points(self._db_data):
-            self._clear_data()
+        with self._data_lock:
+            if not self._db_data:
+                return
+
+            # write the data and clear it when ever the writing was successful
+            if self._dbclient.write_points(self._db_data):
+                self._clear_data()
 
     def _clear_data(self):
         """Internal method to clean up the internal data buffer. Is done when ever the data was written to the db

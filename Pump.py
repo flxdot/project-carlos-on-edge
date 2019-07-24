@@ -1,6 +1,8 @@
 #!/usr/bin/python
 import RPi.GPIO as GPIO
 import time
+import datetime
+from threading import Lock
 
 from Auxiliary import Timer
 from ifcInflux import InfluxAttachedSensor, get_client
@@ -9,57 +11,99 @@ from sensors.distance import SeeedUltraSonicRanger
 
 
 class PumpControl():
-    """"""
+    """
+    The PumpControl hosts all configured pumps and takes care that the pump job will be executed
+    """
 
-    def __init__(self, config: dict):
-        """
+    class __PumpControl(Timer):
 
-        :param config: (mandatory, dictionary)
-        """
+        def __init__(self, config: dict):
+            """
 
-        self.pump_jobs = list()
+            :param config: (mandatory, dictionary)
+            """
 
-        # dictionary of available pumps
-        self.pumps = dict()
-        for pump in config['pumps']:
-            name = list(pump.keys())[0]
-            self.pumps[name] = Pump(name=name, config=pump[name], main_config=config)
+            # set the period to one to make sure to execute the pump jobs as fast as possible
+            super().__init__(name='PumpControl', period=1)
 
-    def add_job(self, pump: str, valve: int, duration: [float, int]):
-        """
+            # the lock to sync the threads
+            self._job_lock = Lock()
 
-        :param pump: (mandatory, str) name of the pump
-        :param valve: (mandatory, int) gpio pin of the valve
-        :param duration: (mandatory, float or int) duration where the pump shall be active in seconds
-        :return: true when the job could be created successfully
-        """
+            # the list of pumps jobs which need to be carried out
+            self.pump_jobs = list()
 
-        if pump not in self.pumps.keys():
+            # dictionary of available pumps
+            self.pumps = dict()
+            for pump in config['pumps']:
+                name = list(pump.keys())[0]
+                self.pumps[name] = Pump(name=name, config=pump[name], main_config=config)
+
+        def add_job(self, pump: str, valve: int, duration: [float, int]):
+            """
+
+            :param pump: (mandatory, str) name of the pump
+            :param valve: (mandatory, int) gpio pin of the valve
+            :param duration: (mandatory, float or int) duration where the pump shall be active in seconds
+            :return: true when the job could be created successfully
+            """
+
+            if pump not in self.pumps.keys():
+                return False
+
+            # create new pump job
+            try:
+                pj = PumpJob(pump=self.pumps[pump], valve=valve, duration=duration)
+            except Exception:
+                return False
+
+            # add the job to the list of jobs
+            with self._job_lock:
+                self.pump_jobs.append(pj)
+                return True
+
             return False
 
-        try:
-            self.pump_jobs.append(PumpJob(pump=pump, valve=valve, duration=duration))
-        except Exception:
-            return False
-        return True
+        def start(self):
+            """Starts the cyclic work of each pump."""
 
-    def start(self):
-        """Starts the data acquisition of the environment."""
+            # start the pumps
+            for pump in self.pumps.values():
+                pump.start()
 
-        for sensor in self.pumps.values():
-            sensor.start()
+            # call the start of the thread
+            super().start()
 
-    def stop(self):
-        """Stops the data acquisition of the environment."""
+        def stop(self):
+            """Stops the cyclic work of each pump."""
 
-        for sensor in self.pumps.values():
-            sensor.stop()
+            for pump in self.pumps.values():
+                pump.stop()
 
-    def join(self):
-        """Wait for all sensors to stop the data acquisition."""
+        def join(self):
+            """Wait for pumps to be finished with their cyclic work."""
 
-        for sensor in self.pumps.values():
-            sensor.join()
+            for pump in self.pumps.values():
+                pump.join()
+
+            super().join()
+
+        def timer_fcn(self):
+            """Will regularly check for new pump jobs. And execute them.
+
+            :return: None
+            """
+
+            # get copy of job list
+            with self._job_lock:
+                # empty the class wide job que
+                cur_jobs = self.pump_jobs[:]
+                self.pump_jobs = list()
+
+            # execute the local job que
+            for job in cur_jobs:
+                job.execute()
+                # wait at least 1 second before executing the next job
+                time.sleep(1)
 
     @staticmethod
     def validate_config(config: dict):
@@ -76,8 +120,24 @@ class PumpControl():
         for pump in config['pumps']:
             Pump.validate_config(pump)
 
+    instance = None
 
-class Pump(Timer):
+    def __new__(cls, config = None):  # __new__ always a classmethod
+        if not PumpControl.instance:
+            if config is None:
+                from CarlosOnEdge import CarlosOnEdge
+                config = CarlosOnEdge.config
+            PumpControl.instance = PumpControl.__PumpControl(config)
+        return PumpControl.instance
+
+    def __getattr__(self, name):
+        return getattr(self.instance, name)
+
+    def __setattr__(self, name):
+        return setattr(self.instance, name)
+
+
+class Pump:
 
     def __init__(self, name: str, config: dict, main_config: dict):
         """
@@ -87,20 +147,95 @@ class Pump(Timer):
         :param main_config: (mandatory, dictionary) the general config (required to build a db client)
         """
 
-        super().__init__(name=f'pump-{name}', period=60)
+        super().__init__()
+
+        #
+        self.measurement = f'pump-{name}'
+        self._dbclient = get_client(main_config)
+        self._active = False
 
         # get the tank level
-        self.tank_level = InfluxAttachedSensor(name=f'water-level', period=60, measurement=f'pump-{name}',
+        self.tank_level = InfluxAttachedSensor(name=f'water-level', period=60, measurement=self.measurement,
                                                sensor=WaterTank(config['water-tank']),
-                                               dbclient=get_client(main_config))
+                                               dbclient=self._dbclient)
 
         self.pin = config['gpio-pin']
 
-    def timer_fcn(self):
-        """
+        # setup the GPIO
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setwarnings(False)
+        GPIO.setup(self.pin, GPIO.OUT)
 
-        :return:
-        """
+    def activate(self):
+        """Activates the pump: Start the flow of water"""
+
+        # get the current water level
+        self.tank_level.record_measurement()
+
+        # set the active flag (this will also write the status to the DB)
+        self.active = True
+
+        # activate the pump
+        GPIO.output(self.pin, GPIO.LOW)
+
+
+    def deactivate(self):
+        """Deactivates the pump: Stops the flow of water."""
+
+        # deactivate the pump
+        GPIO.output(self.pin, GPIO.HIGH)
+
+        # set the active flag (this will also write the status to the DB)
+        self.active = False
+
+        # get the current water level
+        self.tank_level.record_measurement()
+
+    def _write_status(self):
+        """Writes the current status to the db."""
+
+        # write active flag to the db
+        self._dbclient.write_points(self._get_status_for_db())
+
+    def _get_status_for_db(self):
+        """Return the json object which is written to the database."""
+
+        return [
+            {
+                "measurement": self.measurement,
+                "tags": {},
+                "time": str(datetime.datetime.now(datetime.timezone.utc)),
+                "fields": {
+                    "active": self.active,
+                }
+            }
+        ]
+
+    def start(self):
+        """Starts the data tank level measurements."""
+
+        self.tank_level.start()
+
+    def stop(self):
+        """Stops the tank level measurements."""
+
+        self.tank_level.stop()
+
+    def join(self):
+        """Wait for all threads to be finished."""
+
+        self.tank_level.join()
+
+    @property
+    def active(self):
+        return self._active
+
+    @active.setter
+    def active(self, val: bool):
+        status_data = self._get_status_for_db()  # get old status
+        self._active = val
+        status_data += self._get_status_for_db()  # get new status
+        self._dbclient.write_points(status_data)
 
     @staticmethod
     def validate_config(config: dict):
@@ -143,20 +278,16 @@ class PumpJob():
         # setup the GPIO
         GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(False)
-        GPIO.setup(self.pump.pin, GPIO.OUT)
         GPIO.setup(self.valve, GPIO.OUT)
 
     def execute(self):
         """Executes the pump job."""
 
-        # get the current water level
-        self.pump.tank_level.timer_fcn()
-
         # open the value first to allow the water to flow as soon as the pump runs
         GPIO.output(self.valve, GPIO.LOW)
 
         # start the pump
-        GPIO.output(self.pump.pin, GPIO.LOW)
+        self.pump.activate()
 
         # wait the wanted time
         time.sleep(self.duration)
@@ -165,10 +296,7 @@ class PumpJob():
         GPIO.output(self.valve, GPIO.HIGH)
 
         # stop the pump
-        GPIO.output(self.pump.pin, GPIO.HIGH)
-
-        # get the current water level after the pump has stopped
-        self.pump.tank_level.timer_fcn()
+        self.pump.deactivate()
 
 
 class WaterTank(SmartSensor):

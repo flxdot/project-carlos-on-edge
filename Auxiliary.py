@@ -98,6 +98,11 @@ class DbAttachedSensor(Timer):
     def timer_fcn(self):
         """The actual work of the sensor of gathering data and sending it to the database."""
 
+        self.record_measurement()
+
+    def record_measurement(self):
+        """Takes one measurement and writes the data to the database."""
+
         # get the data
         try:
             self.measure()
