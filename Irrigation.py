@@ -3,9 +3,8 @@
 import time
 
 from Auxiliary import Timer, convert_to_seconds
-from ifcInflux import InfluxAttachedSensor, get_client, get_df_client
+from ifcInflux import InfluxAttachedSensor, get_client
 from sensors.moisture import CapacitiveSoilMoistureSensor
-from Pump import PumpJob
 
 
 class Irrigation():
@@ -87,7 +86,7 @@ class IrrigationLoop(Timer):
         self.measurement = f'irrigation-loop-{name}'
 
         # the db client read data
-        self.db_df_client = get_df_client(main_config)
+        self.db_df_client = get_client(main_config)
 
         # the moisture sensor
         self.moisture_sensor = InfluxAttachedSensor(name=f'{name}-moisture-sensor', period=SENSOR_PERIOD,
@@ -109,7 +108,7 @@ class IrrigationLoop(Timer):
             self.valve_pin = None
 
         # the watering rules
-        self.watering_rule = WateringRule(name=name, irrigation_loop=self, config=config['watering-rule'])
+        self.watering_rule = WateringRule(irrigation_loop=self, config=config['watering-rule'])
 
     def start(self):
         """Starts the data acquisition of the irrigation loop."""
@@ -141,14 +140,18 @@ class IrrigationLoop(Timer):
         res = self.db_df_client.query(query)
         data = res[self.measurement]
 
+        # get data as list
+        data_list = list()
+        for sample in list(data):
+            data_list.append(sample[field])
+
         # check if all data points are smaller as the wanted threshold
-        if self.watering_rule.check_moisture(data[field]):
+        if self.watering_rule.check_moisture(data_list):
             # create a new pump job and submit it afterwards
-            pj = PumpJob(pump=self.pump, valve=self.valve_pin, duration=self.watering_rule.time)
-            if self.pump_controller.add_job(pj):
+            if self.pump_controller.add_job(pump=self.pump_name, valve=self.valve_pin,
+                                            duration=self.watering_rule.time):
                 # set the time stamp of the last successful pump job submission
                 self.last_pump_actv = time.time()
-
 
     @staticmethod
     def validate_config(config: dict):
@@ -185,7 +188,7 @@ class IrrigationLoop(Timer):
 
 class WateringRule():
 
-    def __init__(self, name: str, irrigation_loop: IrrigationLoop, config: dict, main_config: dict):
+    def __init__(self, irrigation_loop: IrrigationLoop, config: dict):
         """
 
         :param name: (mandatory, str) the name of the watering rule
@@ -202,7 +205,6 @@ class WateringRule():
         # the minimal time between two consecutive pump activations in seconds
         self.interval = convert_to_seconds(config['interval'])
 
-
     def build_query(self, measurement: str, field: str) -> str:
         """The Query string which can be used to check the watering rule.
 
@@ -211,16 +213,16 @@ class WateringRule():
         :returns str: The query string to check the watering rule
         """
 
-        return f'SELECT "{field}" from "{measurement}" WHERE time > now() - {self.trigger_time}s'
+        return f'SELECT "{field}" from "{measurement}" WHERE time > now() - {int(self.trigger_time)}s'
 
-    def check_moisture(self, moisture_data):
+    def check_moisture(self, moisture_data: list):
         """Checks whether all of the given
 
-        :param moisture_data: (mandatory, pandas.DataFrame) the moisture levels
+        :param moisture_data: (mandatory, list) the moisture levels
         :return bool: True when the moisture level has been violated.
         """
 
-        return (moisture_data < self.trigger_low_level).all()
+        return all([val < self.trigger_low_level for val in moisture_data])
 
     @staticmethod
     def validate_config(config: dict):
