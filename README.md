@@ -1,6 +1,15 @@
 # project-carlos-on-edge
 The code running on raspberry pi on edge to read and fetch sensor data
 
+# Requirements
+
+1. Activate the i2c interface on your raspberry-pi
+2. install python3.7
+3. install required packages:
+   ```bash
+   python3.7 -m pip install -r requirements.txt
+   ```
+
 # Configuration
 
 ```yaml
@@ -24,7 +33,7 @@ irrigation-loops:
         channel: 1
       pump: main-pump
       valve-gpio: 21
-      watering-rules:
+      watering-rule:
         trigger:
           low-level: 38
           time: 30m
@@ -36,7 +45,7 @@ irrigation-loops:
         channel: 2
       pump: main-pump
       valve-gpio: 22
-      watering-rules:
+      watering-rule:
         trigger:
           low-level: 38
           time: 30m

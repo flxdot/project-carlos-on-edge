@@ -247,15 +247,18 @@ class Pump:
         :raises ValueError: Configuration is wrong.
         """
 
+        name = list(config.keys())[0]
+        config = config[name]
+
         if 'gpio-pin' not in config:
-            raise KeyError('Mandatory section ''gpio-pin'' is missing in the config.')
+            raise KeyError(f"Mandatory section 'gpio-pin' is missing in the config for pump {name}.")
 
         if config['gpio-pin'] < 4 or config['gpio-pin'] > 27:
-            raise ValueError(f'Can not use gpio-pins {config["gpio-pin"]} as digital input. Check the GPIO layout of '
-                             f'your raspberry. And note that pin 1 & 2 is used for I2C bus.')
+            raise ValueError(f'Can not use gpio-pins {config["gpio-pin"]} as digital input for pump {name}. '
+                             f'Check the GPIO layout of your raspberry. And note that pin 1 & 2 is used for I2C bus.')
 
         if 'water-tank' not in config:
-            raise KeyError('Mandatory section ''water-tank'' is missing in the config.')
+            raise KeyError(f"Mandatory section 'water-tank'' is missing in the config for pump {name}.")
 
         WaterTank.validate_config(config['water-tank'])
 

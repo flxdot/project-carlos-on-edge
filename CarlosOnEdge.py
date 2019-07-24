@@ -62,7 +62,7 @@ class CarlosOnEdge():
             # create the pump controller before the irrigation loops!
             self.pump_controller = PumpControl(self.config)
 
-            self.irrigation_loops = Irrigation(self.config)
+            self.irrigation_loops = Irrigation(self.config, self.pump_controller)
 
         def start(self):
             """Vamos! Let carlos start its work.

@@ -166,3 +166,14 @@ def get_logger(name, level=logging.DEBUG, path=os.path.join(os.getcwd(), 'log'))
     the_logger.addHandler(file_handler)
 
     return the_logger
+
+seconds_per_unit = {"s": 1, "m": 60, "h": 3600, "d": 86400, "w": 604800}
+
+def convert_to_seconds(s: str):
+    """Converts time string expressed as <number>[m|h|d|s|w] to seconds.
+
+    Solution found at
+    https://stackoverflow.com/questions/3096860/convert-time-string-expressed-as-numbermhdsw-to-seconds-in-python
+    """
+
+    return float(s[:-1]) * seconds_per_unit[s[-1]]

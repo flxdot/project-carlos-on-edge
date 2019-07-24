@@ -106,7 +106,7 @@ class InfluxAttachedSensor(DbAttachedSensor):
 
         # store the db client
         self._dbclient = dbclient
-        self._measurement = measurement
+        self.measurement = measurement
 
         self._data_lock = Lock()
 
@@ -155,7 +155,7 @@ class InfluxAttachedSensor(DbAttachedSensor):
             # create new sample
             cur_sample = dict()
             # set the measurement
-            cur_sample['measurement'] = self._measurement
+            cur_sample['measurement'] = self.measurement
             # set the tags
             cur_sample['tags'] = tags
             # set the timestamp
