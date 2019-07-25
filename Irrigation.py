@@ -222,7 +222,8 @@ class WateringRule():
         :return bool: True when the moisture level has been violated.
         """
 
-        return all([val < self.trigger_low_level for val in moisture_data])
+        # moisture level is stored in % 0-1 and the low level is stored in % 0-100
+        return all([val < self.trigger_low_level * 100 for val in moisture_data])
 
     @staticmethod
     def validate_config(config: dict):
