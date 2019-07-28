@@ -5,8 +5,7 @@ import time
 from Auxiliary import Timer, convert_to_seconds
 from ifcInflux import InfluxAttachedSensor, get_client
 from sensors.moisture import CapacitiveSoilMoistureSensor
-from CarlosOnEdge import SENSOR_PERIOD
-
+from sensors.auxiliary import SENSOR_PERIOD
 
 class Irrigation():
     """"""
@@ -77,7 +76,7 @@ class IrrigationLoop(Timer):
         :param main_config: (mandatory, dictionary) the general config (required to build a db client)
         :param pump_controller: (mandatory, PumpController) The pump controller
         """
-        from CarlosOnEdge import SENSOR_PERIOD
+        from sensors.auxiliary import SENSOR_PERIOD
 
         super().__init__(name=name, period=60)
 

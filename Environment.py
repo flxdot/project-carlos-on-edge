@@ -18,7 +18,7 @@ class Environment(object):
         :param config: (mandatory, dictionary)
         """
 
-        from CarlosOnEdge import SENSOR_PERIOD
+        from sensors.auxiliary import SENSOR_PERIOD
 
         # list of all environment sensors
         self.sensors = list()
