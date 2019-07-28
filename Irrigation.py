@@ -5,6 +5,7 @@ import time
 from Auxiliary import Timer, convert_to_seconds
 from ifcInflux import InfluxAttachedSensor, get_client
 from sensors.moisture import CapacitiveSoilMoistureSensor
+from CarlosOnEdge import SENSOR_PERIOD
 
 
 class Irrigation():
@@ -222,8 +223,19 @@ class WateringRule():
         :return bool: True when the moisture level has been violated.
         """
 
+        limit_violated = True
+
+        # make sure at least 95% of the theoretical available data points are actual available
+        limit_violated &= len(moisture_data) >= 0.95 * self.trigger_time / SENSOR_PERIOD
+
+        # check if all data points are in the limits
+        limit_violated &= all([val > 0 for val in moisture_data])
+        limit_violated &= all([val < 1 for val in moisture_data])
+
         # moisture level is stored in % 0-1 and the low level is stored in % 0-100
-        return all([val * 100 < self.trigger_low_level for val in moisture_data])
+        limit_violated &= all([val * 100 < self.trigger_low_level for val in moisture_data])
+
+        return limit_violated
 
     @staticmethod
     def validate_config(config: dict):
