@@ -327,7 +327,7 @@ class Valve:
                 "tags": {},
                 "time": str(datetime.datetime.now(datetime.timezone.utc)),
                 "fields": {
-                    "active": self._active,
+                    "valve-active": self._active,
                 }
             }
         ]
