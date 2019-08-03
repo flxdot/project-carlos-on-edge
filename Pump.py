@@ -263,9 +263,94 @@ class Pump:
         WaterTank.validate_config(config['water-tank'])
 
 
+
+class Valve:
+    """The valve class represents a valve connetcted to a specific irrigation loop."""
+
+
+    def __init__(self, name: str, pin: int, measurement: str, main_config: dict):
+        """Constructs the object.
+
+        :param name: (mandatory, string) the name of the irrigiation loop
+        :param pin: (mandatory, int) the number if the GPIO pin
+        :param measurement: (mandatory, str) the name of the measurement
+        :param main_config: (mandatory, dict) the main config
+        """
+
+        # store the parameter
+        self.name = name
+        self.pin = pin
+        self.measurement = measurement
+
+        # some internal parameter
+        self._db_client = get_client(main_config)
+        self._status_data = list()
+        self._active = False
+
+        # setup the GPIO
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setwarnings(False)
+        GPIO.setup(self.pin, GPIO.OUT)
+
+    def activate(self):
+        """Activates the pump: Start the flow of water"""
+
+        # set the active flag (this will also write the status to the DB)
+        self.active = True
+
+        # activate the pump
+        GPIO.output(self.pin, GPIO.LOW)
+
+
+    def deactivate(self):
+        """Deactivates the pump: Stops the flow of water."""
+
+        # deactivate the pump
+        GPIO.output(self.pin, GPIO.HIGH)
+
+        # set the active flag (this will also write the status to the DB)
+        self.active = False
+
+    def _write_status(self):
+        """Writes the current status to the db."""
+
+        # write active flag to the db and reset the status da
+        if self._db_client.write_points(self._status_data):
+            self._status_data = list()
+
+    def _get_status_for_db(self):
+        """Return the json object which is written to the database."""
+
+        return [
+            {
+                "measurement": self.measurement,
+                "tags": {},
+                "time": str(datetime.datetime.now(datetime.timezone.utc)),
+                "fields": {
+                    "active": self._active,
+                }
+            }
+        ]
+
+    @property
+    def active(self):
+        return self._active
+
+    @active.setter
+    def active(self, val: bool):
+        # get old status
+        self._status_data += self._get_status_for_db()
+        # update the actual status
+        self._active = val
+        # get new status
+        self._status_data += self._get_status_for_db()
+        # try to write the status
+        self._write_status()
+
+
 class PumpJob():
 
-    def __init__(self, pump: Pump, valve: int, duration: [float, int]):
+    def __init__(self, pump: Pump, valve: [Valve, int], duration: [float, int]):
         """
 
         :param pump: (mandatory, Pump) the actual class of the pump
@@ -279,15 +364,20 @@ class PumpJob():
         self.duration = duration
 
         # setup the GPIO
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setwarnings(False)
-        GPIO.setup(self.valve, GPIO.OUT)
+        if isinstance(self.valve, int):
+            GPIO.setmode(GPIO.BCM)
+            GPIO.setwarnings(False)
+            GPIO.setup(self.valve, GPIO.OUT)
 
     def execute(self):
         """Executes the pump job."""
 
         # open the value first to allow the water to flow as soon as the pump runs
-        GPIO.output(self.valve, GPIO.LOW)
+        try:
+            self.valve.activate()
+        except AttributeError:
+            if self.valve is not None:
+                GPIO.output(self.valve, GPIO.LOW)
 
         # start the pump
         self.pump.activate()
@@ -296,7 +386,11 @@ class PumpJob():
         time.sleep(self.duration)
 
         # close the valve first to shut down the flow as fast as possible
-        GPIO.output(self.valve, GPIO.HIGH)
+        try:
+            self.valve.deactivate()
+        except AttributeError:
+            if self.valve is not None:
+                GPIO.output(self.valve, GPIO.HIGH)
 
         # stop the pump
         self.pump.deactivate()
