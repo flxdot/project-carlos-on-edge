@@ -3,9 +3,11 @@
 import time
 
 from Auxiliary import Timer, convert_to_seconds
+from Pump import Valve
 from ifcInflux import InfluxAttachedSensor, get_client
-from sensors.moisture import CapacitiveSoilMoistureSensor
 from sensors.auxiliary import SENSOR_PERIOD
+from sensors.moisture import CapacitiveSoilMoistureSensor
+
 
 class Irrigation():
     """"""
@@ -98,14 +100,16 @@ class IrrigationLoop(Timer):
         # the pump
         self.pump_name = config['pump']
         self.pump = self.pump_controller.pumps[self.pump_name]
+
         # the last time the pump was active
         self.last_pump_actv = 0
 
         # the valve
-        try:
-            self.valve_pin = config['valve-gpio']
-        except KeyError:
-            self.valve_pin = None
+        if 'valve-gpio' in config:
+            self.valve = Valve(name=name, pin=config['valve-gpio'], measurement=self.measurement,
+                                   main_config=main_config)
+        else:
+            self.valve = None
 
         # the watering rules
         self.watering_rule = WateringRule(irrigation_loop=self, config=config['watering-rule'])
@@ -148,7 +152,7 @@ class IrrigationLoop(Timer):
         # check if all data points are smaller as the wanted threshold
         if self.watering_rule.check_moisture(data_list):
             # create a new pump job and submit it afterwards
-            if self.pump_controller.add_job(pump=self.pump_name, valve=self.valve_pin,
+            if self.pump_controller.add_job(pump=self.pump_name, valve=self.valve,
                                             duration=self.watering_rule.time):
                 # set the time stamp of the last successful pump job submission
                 self.last_pump_actv = time.time()

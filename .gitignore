@@ -1,6 +1,13 @@
 # never store the config
 config.yaml
 
+# never store my internal test scripts
+*test*.py
+*test*.ipynb
+
+# don't store pycharm stuff
+.idea/
+
 # special development case when developing not on raspberrypi
 RPi/
 
