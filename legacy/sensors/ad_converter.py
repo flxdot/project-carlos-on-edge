@@ -1,8 +1,7 @@
 #!/usr/bin/python
 
 import time
-from threading import RLock
-from sensors.i2c import Adafruit_I2C, i2cLock
+from legacy.sensors.i2c import Adafruit_I2C, i2cLock
 
 
 class ADS1x15:

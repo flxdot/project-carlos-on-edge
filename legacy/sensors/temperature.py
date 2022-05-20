@@ -4,7 +4,7 @@ import RPi.GPIO as GPIO
 from time import sleep
 from enum import Enum
 
-from sensors.auxiliary import SmartSensor
+from legacy.sensors.auxiliary import SmartSensor
 
 def set_max_priority(): pass
 def set_default_priority(): pass

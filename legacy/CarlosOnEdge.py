@@ -1,6 +1,5 @@
 #!/usr/bin/python
 
-import time
 import os
 import yaml
 import ifcInflux
@@ -8,9 +7,8 @@ from Environment import Environment
 from Irrigation import Irrigation
 from Pump import PumpControl
 from sensors.i2c import i2cLock
-import sensors.auxiliary
 
-SENSOR_PERIOD = sensors.auxiliary.SENSOR_PERIOD
+SENSOR_PERIOD = legacy.sensors.auxiliary.SENSOR_PERIOD
 
 class CarlosOnEdge():
     """CarlosOnEdge will take of all those jobs which are not done in the cloud:

@@ -1,10 +1,9 @@
 #!/usr/bin/python
 
-import sys
 import time
 import RPi.GPIO as GPIO
 
-from sensors.auxiliary import SmartSensor
+from legacy.sensors.auxiliary import SmartSensor
 
 usleep = lambda x: time.sleep(x / 1000000.0)
 

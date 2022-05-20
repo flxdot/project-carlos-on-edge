@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
-from sensors.auxiliary import SmartSensor
-from sensors.ad_converter import ADConverter
+from legacy.sensors.auxiliary import SmartSensor
+from legacy.sensors.ad_converter import ADConverter
 
 class CapacitiveSoilMoistureSensor(SmartSensor):
     """This class is an interface to the Capacitive Soil Moisture Sensor v1.2"""

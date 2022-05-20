@@ -2,9 +2,9 @@
 
 import time
 import smbus2
-from sensors.i2c import i2cLock
+from legacy.sensors.i2c import i2cLock
 
-from sensors.auxiliary import SmartSensor
+from legacy.sensors.auxiliary import SmartSensor
 
 def validate_config(type: str):
     """Checks if all required parameter are available in the passed config dictionary.
