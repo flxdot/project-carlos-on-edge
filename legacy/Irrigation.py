@@ -3,13 +3,13 @@
 import time
 
 from Auxiliary import Timer, convert_to_seconds
-from Pump import Valve
 from ifcInflux import InfluxAttachedSensor, get_client
+from Pump import Valve
 from sensors.auxiliary import SENSOR_PERIOD
 from sensors.moisture import CapacitiveSoilMoistureSensor
 
 
-class Irrigation():
+class Irrigation:
     """"""
 
     def __init__(self, config: dict, pump_controller):
@@ -23,13 +23,17 @@ class Irrigation():
         self.loops = dict()
         self.pump_controller = pump_controller
 
-        irrs_cfg = config['irrigation-loops']
+        irrs_cfg = config["irrigation-loops"]
 
         for irr_cfg in irrs_cfg:
             name = list(irr_cfg.keys())[0]
             loop_cfg = irr_cfg[name]
-            self.loops[name] = IrrigationLoop(name=name, config=loop_cfg, main_config=config,
-                                              pump_controller=pump_controller)
+            self.loops[name] = IrrigationLoop(
+                name=name,
+                config=loop_cfg,
+                main_config=config,
+                pump_controller=pump_controller,
+            )
 
     def start(self):
         """Starts the data acquisition of the environment."""
@@ -59,17 +63,18 @@ class Irrigation():
         :raises ValueError: Config value if wrong
         """
 
-        if 'irrigation-loops' not in config.keys():
-            raise KeyError('Mandatory section \'irrigation-loops\' is missing in the config.')
+        if "irrigation-loops" not in config.keys():
+            raise KeyError(
+                "Mandatory section 'irrigation-loops' is missing in the config."
+            )
 
-        irrs_cfg = config['irrigation-loops']
+        irrs_cfg = config["irrigation-loops"]
 
         for irr_cfg in irrs_cfg:
             IrrigationLoop.validate_config(irr_cfg)
 
 
 class IrrigationLoop(Timer):
-
     def __init__(self, name: str, config: dict, main_config: dict, pump_controller):
         """
 
@@ -85,34 +90,42 @@ class IrrigationLoop(Timer):
         self.pump_controller = pump_controller
 
         # define the measurement name
-        self.measurement = f'irrigation-loop-{name}'
+        self.measurement = f"irrigation-loop-{name}"
 
         # the db client read data
         self.db_df_client = get_client(main_config)
 
         # the moisture sensor
-        self.moisture_sensor = InfluxAttachedSensor(name=f'{name}-moisture-sensor', period=SENSOR_PERIOD,
-                                                    measurement=self.measurement,
-                                                    sensor=CapacitiveSoilMoistureSensor.from_config(
-                                                        config['moisture-sensor']),
-                                                    dbclient=get_client(main_config))
+        self.moisture_sensor = InfluxAttachedSensor(
+            name=f"{name}-moisture-sensor",
+            period=SENSOR_PERIOD,
+            measurement=self.measurement,
+            sensor=CapacitiveSoilMoistureSensor.from_config(config["moisture-sensor"]),
+            dbclient=get_client(main_config),
+        )
 
         # the pump
-        self.pump_name = config['pump']
+        self.pump_name = config["pump"]
         self.pump = self.pump_controller.pumps[self.pump_name]
 
         # the last time the pump was active
         self.last_pump_actv = 0
 
         # the valve
-        if 'valve-gpio' in config:
-            self.valve = Valve(name=name, pin=config['valve-gpio'], measurement=self.measurement,
-                                   main_config=main_config)
+        if "valve-gpio" in config:
+            self.valve = Valve(
+                name=name,
+                pin=config["valve-gpio"],
+                measurement=self.measurement,
+                main_config=main_config,
+            )
         else:
             self.valve = None
 
         # the watering rules
-        self.watering_rule = WateringRule(irrigation_loop=self, config=config['watering-rule'])
+        self.watering_rule = WateringRule(
+            irrigation_loop=self, config=config["watering-rule"]
+        )
 
     def start(self):
         """Starts the data acquisition of the irrigation loop."""
@@ -139,8 +152,10 @@ class IrrigationLoop(Timer):
             return
 
         # get the query string
-        field = f'{self.moisture_sensor.name}-percentage'
-        query = self.watering_rule.build_query(measurement=self.measurement, field=field)
+        field = f"{self.moisture_sensor.name}-percentage"
+        query = self.watering_rule.build_query(
+            measurement=self.measurement, field=field
+        )
         res = self.db_df_client.query(query)
         data = res[self.measurement]
 
@@ -152,8 +167,9 @@ class IrrigationLoop(Timer):
         # check if all data points are smaller as the wanted threshold
         if self.watering_rule.check_moisture(data_list):
             # create a new pump job and submit it afterwards
-            if self.pump_controller.add_job(pump=self.pump_name, valve=self.valve,
-                                            duration=self.watering_rule.time):
+            if self.pump_controller.add_job(
+                pump=self.pump_name, valve=self.valve, duration=self.watering_rule.time
+            ):
                 # set the time stamp of the last successful pump job submission
                 self.last_pump_actv = time.time()
 
@@ -173,7 +189,7 @@ class IrrigationLoop(Timer):
 
         # check if all required keys are available
         av_keys = loop_cfg.keys()
-        req_keys = ['moisture-sensor', 'pump', 'watering-rule']
+        req_keys = ["moisture-sensor", "pump", "watering-rule"]
         missing_keys = list()
         for key in req_keys:
             if key not in av_keys:
@@ -181,17 +197,18 @@ class IrrigationLoop(Timer):
 
         if missing_keys:
             missing_keys = [f"'{key}'" for key in missing_keys]
-            raise KeyError(f"Mandatory section {', '.join(missing_keys)} is missing for irrigation-loop {name}.")
+            raise KeyError(
+                f"Mandatory section {', '.join(missing_keys)} is missing for irrigation-loop {name}."
+            )
 
         # moisture-sensor
-        CapacitiveSoilMoistureSensor.validate_config(loop_cfg['moisture-sensor'])
+        CapacitiveSoilMoistureSensor.validate_config(loop_cfg["moisture-sensor"])
 
         # watering-rules
-        WateringRule.validate_config(loop_cfg['watering-rule'])
+        WateringRule.validate_config(loop_cfg["watering-rule"])
 
 
-class WateringRule():
-
+class WateringRule:
     def __init__(self, irrigation_loop: IrrigationLoop, config: dict):
         """
 
@@ -201,13 +218,13 @@ class WateringRule():
         self.irrigation_loop = irrigation_loop
 
         # the low level of the moisture sensor
-        self.trigger_low_level = config['trigger']['low-level']
+        self.trigger_low_level = config["trigger"]["low-level"]
         # the time in seconds where the moisture level has to less than the trigger_low_level in seconds
-        self.trigger_time = convert_to_seconds(config['trigger']['time'])
+        self.trigger_time = convert_to_seconds(config["trigger"]["time"])
         # the time where the pump shall be activated in case the moisture level is too low in seconds
-        self.time = convert_to_seconds(config['time'])
+        self.time = convert_to_seconds(config["time"])
         # the minimal time between two consecutive pump activations in seconds
-        self.interval = convert_to_seconds(config['interval'])
+        self.interval = convert_to_seconds(config["interval"])
 
     def build_query(self, measurement: str, field: str) -> str:
         """The Query string which can be used to check the watering rule.
@@ -236,7 +253,9 @@ class WateringRule():
         limit_violated &= all([val < 1 for val in moisture_data])
 
         # moisture level is stored in % 0-1 and the low level is stored in % 0-100
-        limit_violated &= all([val * 100 < self.trigger_low_level for val in moisture_data])
+        limit_violated &= all(
+            [val * 100 < self.trigger_low_level for val in moisture_data]
+        )
 
         return limit_violated
 
@@ -261,7 +280,7 @@ class WateringRule():
 
         # check if all required keys are available
         av_keys = config.keys()
-        req_keys = ['trigger', 'time', 'interval']
+        req_keys = ["trigger", "time", "interval"]
         missing_keys = list()
         for key in req_keys:
             if key not in av_keys:
@@ -269,29 +288,41 @@ class WateringRule():
 
         if missing_keys:
             missing_keys = [f"'{key}'" for key in missing_keys]
-            raise KeyError(f"Mandatory section {', '.join(missing_keys)} is missing for watering-rule.")
+            raise KeyError(
+                f"Mandatory section {', '.join(missing_keys)} is missing for watering-rule."
+            )
 
         # check the trigger
-        if 'low-level' not in config['trigger']:
-            raise KeyError(f"Mandatory section 'low-level' is missing for watering-rules trigger.")
-        if 'time' not in config['trigger']:
-            raise KeyError(f"Mandatory section 'time' is missing for watering-rules trigger.")
+        if "low-level" not in config["trigger"]:
+            raise KeyError(
+                f"Mandatory section 'low-level' is missing for watering-rules trigger."
+            )
+        if "time" not in config["trigger"]:
+            raise KeyError(
+                f"Mandatory section 'time' is missing for watering-rules trigger."
+            )
 
         # check values
-        if config['trigger']['low-level'] < 0 or config['trigger']['low-level'] > 100:
-            raise ValueError('Trigger low-level has to be in between 0 and 100.')
+        if config["trigger"]["low-level"] < 0 or config["trigger"]["low-level"] > 100:
+            raise ValueError("Trigger low-level has to be in between 0 and 100.")
         try:
-            convert_to_seconds(config['trigger']['time'])
+            convert_to_seconds(config["trigger"]["time"])
         except (KeyError, ValueError):
-            raise ValueError(f"Configured trigger time '{config['trigger']['time']}' of the watering-rule could not be "
-                             f"interpreted.")
+            raise ValueError(
+                f"Configured trigger time '{config['trigger']['time']}' of the watering-rule could not be "
+                f"interpreted."
+            )
         try:
-            convert_to_seconds(config['time'])
+            convert_to_seconds(config["time"])
         except (KeyError, ValueError):
-            raise ValueError(f"Configured time '{config['time']}' of the watering-rule could not be "
-                             f"interpreted.")
+            raise ValueError(
+                f"Configured time '{config['time']}' of the watering-rule could not be "
+                f"interpreted."
+            )
         try:
-            convert_to_seconds(config['interval'])
+            convert_to_seconds(config["interval"])
         except (KeyError, ValueError):
-            raise ValueError(f"Configured interval '{config['interval']}' of the watering-rule could not be "
-                             f"interpreted.")
+            raise ValueError(
+                f"Configured interval '{config['interval']}' of the watering-rule could not be "
+                f"interpreted."
+            )

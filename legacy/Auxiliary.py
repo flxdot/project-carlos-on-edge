@@ -1,11 +1,12 @@
 #!/usr/bin/python
 
-import os
 import abc
-import time
 import logging
 import logging.handlers
-from threading import Thread, Event, Lock
+import os
+import time
+from threading import Event, Lock, Thread
+
 
 class Timer(Thread):
     """The Timer is used to perform periodic tasks."""
@@ -25,7 +26,7 @@ class Timer(Thread):
         self._timer_lock = Lock()
         self._timer_stop = Event()
         self._timer_next_execution = time.time()
-        self._timer_logger = get_logger(f'Timer_{name}', level=logging.WARNING)
+        self._timer_logger = get_logger(f"Timer_{name}", level=logging.WARNING)
 
     def run(self):
         """The Thread method."""
@@ -38,17 +39,23 @@ class Timer(Thread):
             try:
                 self.timer_fcn()
             except Exception:
-                self._timer_logger.exception('Unknown exception while executing ''timer_fcn()''.')
+                self._timer_logger.exception(
+                    "Unknown exception while executing " "timer_fcn()" "."
+                )
 
             # sleep until the next execution is due
-            with self._timer_lock: # acquire the lock because the timer period may have changed
-                self._timer_next_execution = self._timer_next_execution + self._timer_period
+            with self._timer_lock:  # acquire the lock because the timer period may have changed
+                self._timer_next_execution = (
+                    self._timer_next_execution + self._timer_period
+                )
             sleep_time = self._timer_next_execution - time.time()
             if sleep_time > 0:
                 time.sleep(sleep_time)
             else:
                 self._timer_next_execution = time.time() + self._timer_period
-                self._timer_logger.warning(f'Exceeded timer period by {abs(sleep_time)*1000:.2f}ms.')
+                self._timer_logger.warning(
+                    f"Exceeded timer period by {abs(sleep_time)*1000:.2f}ms."
+                )
 
     def set_period(self, period: [float, int]):
         """Change the current timer period to the wanted value.
@@ -71,7 +78,7 @@ class Timer(Thread):
 
 class DbAttachedSensor(Timer):
     """The DBAttachedSensor is the super class for all sensors which some how sendint their data to any type of
-     database."""
+    database."""
 
     def __init__(self, name: str, period: [float, int], sensor):
         """Constructor ot the DbAttachedSensor class. Please specify a unique name and a wanted sample period.
@@ -82,7 +89,7 @@ class DbAttachedSensor(Timer):
         """
 
         if sensor is None:
-            raise ValueError('The input Sensor can not be of NoneType.')
+            raise ValueError("The input Sensor can not be of NoneType.")
 
         super().__init__(name=name, period=period)
 
@@ -107,14 +114,18 @@ class DbAttachedSensor(Timer):
         try:
             self.measure()
         except Exception:
-            self.logger.exception(f'{self.name}: Unknown error while gathering measurement data.')
+            self.logger.exception(
+                f"{self.name}: Unknown error while gathering measurement data."
+            )
             return None
 
         # write the data to the database
         try:
             self.write_db()
         except Exception:
-            self.logger.exception(f'{self.name}: Unknown error while writing measurement data to database.')
+            self.logger.exception(
+                f"{self.name}: Unknown error while writing measurement data to database."
+            )
             return None
 
     @abc.abstractmethod
@@ -133,7 +144,8 @@ class DbAttachedSensor(Timer):
         """
         pass
 
-def get_logger(name, level=logging.DEBUG, path=os.path.join(os.getcwd(), 'log')):
+
+def get_logger(name, level=logging.DEBUG, path=os.path.join(os.getcwd(), "log")):
     """
 
     :param name: (mandatory, string) name of the logger
@@ -149,8 +161,8 @@ def get_logger(name, level=logging.DEBUG, path=os.path.join(os.getcwd(), 'log'))
         os.makedirs(path)
 
     # create formatter
-    format_str = '%(asctime)s.%(msecs)03d - %(levelname)-8s - %(message)s'
-    date_format = '%Y-%d-%m %H:%M:%S'
+    format_str = "%(asctime)s.%(msecs)03d - %(levelname)-8s - %(message)s"
+    date_format = "%Y-%d-%m %H:%M:%S"
     formatter = logging.Formatter(format_str, date_format)
 
     # add stream handler
@@ -159,15 +171,16 @@ def get_logger(name, level=logging.DEBUG, path=os.path.join(os.getcwd(), 'log'))
     the_logger.addHandler(stream_handler)
 
     # time rotating file handler
-    file_handler = logging.handlers.TimedRotatingFileHandler(os.path.join(path, f'{name}.log'),
-                                       when="midnight",
-                                       interval=1,
-                                       backupCount=7)
+    file_handler = logging.handlers.TimedRotatingFileHandler(
+        os.path.join(path, f"{name}.log"), when="midnight", interval=1, backupCount=7
+    )
     the_logger.addHandler(file_handler)
 
     return the_logger
 
+
 seconds_per_unit = {"s": 1, "m": 60, "h": 3600, "d": 86400, "w": 604800}
+
 
 def convert_to_seconds(s: str):
     """Converts time string expressed as <number>[m|h|d|s|w] to seconds.

@@ -1,11 +1,13 @@
 #!/usr/bin/python
 
 import time
+
 import RPi.GPIO as GPIO
 
 from legacy.sensors.auxiliary import SmartSensor
 
 usleep = lambda x: time.sleep(x / 1000000.0)
+
 
 class SeeedUltraSonicRanger(SmartSensor):
     """Do distance measurements with the Seeed Ultrasonic Ranger.
@@ -106,4 +108,4 @@ class SeeedUltraSonicRanger(SmartSensor):
         :return: dict
         """
 
-        return {'distance': self.get_distance()}
+        return {"distance": self.get_distance()}

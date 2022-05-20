@@ -1,8 +1,9 @@
 #!/usr/bin/python
 
 import os
-import yaml
+
 import ifcInflux
+import yaml
 from Environment import Environment
 from Irrigation import Irrigation
 from Pump import PumpControl
@@ -10,20 +11,21 @@ from sensors.i2c import i2cLock
 
 SENSOR_PERIOD = legacy.sensors.auxiliary.SENSOR_PERIOD
 
-class CarlosOnEdge():
+
+class CarlosOnEdge:
     """CarlosOnEdge will take of all those jobs which are not done in the cloud:
-        - gathering information about the plants (moisture level)
-        - gathering information about the plant environments (Sunlight, weather, etc.)
-        - watering your plants
+    - gathering information about the plants (moisture level)
+    - gathering information about the plant environments (Sunlight, weather, etc.)
+    - watering your plants
     """
 
     # handle to the config
     config = None
 
-    class __CarlosOnEdge():
+    class __CarlosOnEdge:
         """Private member of the CarlosOnEdge to make sure the CarlosOnEdge is Singleton."""
 
-        def __init__(self, config_file: str = 'config.yaml'):
+        def __init__(self, config_file: str = "config.yaml"):
             """
 
             :param config_file: (optional, str) path to the config file. Default is: config.yaml
@@ -42,8 +44,12 @@ class CarlosOnEdge():
 
             # does the file exist?
             if not os.path.exists(config_file):
-                raise FileNotFoundError('The config file ''config.yaml'' could not be located. '
-                                        'Make sure to create one with the syntax described in the documentation.')
+                raise FileNotFoundError(
+                    "The config file "
+                    "config.yaml"
+                    " could not be located. "
+                    "Make sure to create one with the syntax described in the documentation."
+                )
 
             # store the inputs
             self._cfg_file = config_file
@@ -85,7 +91,7 @@ class CarlosOnEdge():
         def wait(self):
             """Wait until carlos has done it's job.
 
-            Note: This will never be the case since carlos will wait for all """
+            Note: This will never be the case since carlos will wait for all"""
 
             self.environment.join()
             self.irrigation_loops.join()
@@ -98,7 +104,7 @@ class CarlosOnEdge():
             """
 
             # read the config
-            with open(self._cfg_file, 'r') as document:
+            with open(self._cfg_file, "r") as document:
                 return yaml.safe_load(document)
 
     @staticmethod
@@ -133,5 +139,3 @@ class CarlosOnEdge():
 
     def __setattr__(self, name):
         return setattr(self.instance, name)
-
-

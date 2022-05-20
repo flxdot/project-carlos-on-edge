@@ -1,22 +1,21 @@
 #!/usr/bin/python
-import RPi.GPIO as GPIO
-import time
 import datetime
+import time
 from threading import Lock
 
+import RPi.GPIO as GPIO
 from Auxiliary import Timer
 from ifcInflux import InfluxAttachedSensor, get_client
 from sensors.auxiliary import SmartSensor
 from sensors.distance import SeeedUltraSonicRanger
 
 
-class PumpControl():
+class PumpControl:
     """
     The PumpControl hosts all configured pumps and takes care that the pump job will be executed
     """
 
     class __PumpControl(Timer):
-
         def __init__(self, config: dict):
             """
 
@@ -24,7 +23,7 @@ class PumpControl():
             """
 
             # set the period to one to make sure to execute the pump jobs as fast as possible
-            super().__init__(name='PumpControl', period=1)
+            super().__init__(name="PumpControl", period=1)
 
             # the lock to sync the threads
             self._job_lock = Lock()
@@ -34,9 +33,11 @@ class PumpControl():
 
             # dictionary of available pumps
             self.pumps = dict()
-            for pump in config['pumps']:
+            for pump in config["pumps"]:
                 name = list(pump.keys())[0]
-                self.pumps[name] = Pump(name=name, config=pump[name], main_config=config)
+                self.pumps[name] = Pump(
+                    name=name, config=pump[name], main_config=config
+                )
 
         def add_job(self, pump: str, valve: int, duration: [float, int]):
             """
@@ -114,18 +115,21 @@ class PumpControl():
         :raises KeyError: When the mandatory pumps keys is not available in the config
         """
 
-        if 'pumps' not in config:
-            raise KeyError('The config did not contain the mandatory section ''pumps''.')
+        if "pumps" not in config:
+            raise KeyError(
+                "The config did not contain the mandatory section " "pumps" "."
+            )
 
-        for pump in config['pumps']:
+        for pump in config["pumps"]:
             Pump.validate_config(pump)
 
     instance = None
 
-    def __new__(cls, config = None):  # __new__ always a classmethod
+    def __new__(cls, config=None):  # __new__ always a classmethod
         if not PumpControl.instance:
             if config is None:
                 from CarlosOnEdge import CarlosOnEdge
+
                 config = CarlosOnEdge.config
             PumpControl.instance = PumpControl.__PumpControl(config)
         return PumpControl.instance
@@ -138,7 +142,6 @@ class PumpControl():
 
 
 class Pump:
-
     def __init__(self, name: str, config: dict, main_config: dict):
         """
 
@@ -150,16 +153,20 @@ class Pump:
         super().__init__()
 
         #
-        self.measurement = f'pump-{name}'
+        self.measurement = f"pump-{name}"
         self._dbclient = get_client(main_config)
         self._active = False
 
         # get the tank level
-        self.tank_level = InfluxAttachedSensor(name=f'water-level', period=60, measurement=self.measurement,
-                                               sensor=WaterTank(config['water-tank']),
-                                               dbclient=self._dbclient)
+        self.tank_level = InfluxAttachedSensor(
+            name=f"water-level",
+            period=60,
+            measurement=self.measurement,
+            sensor=WaterTank(config["water-tank"]),
+            dbclient=self._dbclient,
+        )
 
-        self.pin = config['gpio-pin']
+        self.pin = config["gpio-pin"]
 
         # setup the GPIO
         GPIO.setmode(GPIO.BCM)
@@ -177,7 +184,6 @@ class Pump:
 
         # activate the pump
         GPIO.output(self.pin, GPIO.LOW)
-
 
     def deactivate(self):
         """Deactivates the pump: Stops the flow of water."""
@@ -207,7 +213,7 @@ class Pump:
                 "time": str(datetime.datetime.now(datetime.timezone.utc)),
                 "fields": {
                     "active": self.active,
-                }
+                },
             }
         ]
 
@@ -250,23 +256,27 @@ class Pump:
         name = list(config.keys())[0]
         config = config[name]
 
-        if 'gpio-pin' not in config:
-            raise KeyError(f"Mandatory section 'gpio-pin' is missing in the config for pump {name}.")
+        if "gpio-pin" not in config:
+            raise KeyError(
+                f"Mandatory section 'gpio-pin' is missing in the config for pump {name}."
+            )
 
-        if config['gpio-pin'] < 4 or config['gpio-pin'] > 27:
-            raise ValueError(f'Can not use gpio-pins {config["gpio-pin"]} as digital input for pump {name}. '
-                             f'Check the GPIO layout of your raspberry. And note that pin 1 & 2 is used for I2C bus.')
+        if config["gpio-pin"] < 4 or config["gpio-pin"] > 27:
+            raise ValueError(
+                f'Can not use gpio-pins {config["gpio-pin"]} as digital input for pump {name}. '
+                f"Check the GPIO layout of your raspberry. And note that pin 1 & 2 is used for I2C bus."
+            )
 
-        if 'water-tank' not in config:
-            raise KeyError(f"Mandatory section 'water-tank'' is missing in the config for pump {name}.")
+        if "water-tank" not in config:
+            raise KeyError(
+                f"Mandatory section 'water-tank'' is missing in the config for pump {name}."
+            )
 
-        WaterTank.validate_config(config['water-tank'])
-
+        WaterTank.validate_config(config["water-tank"])
 
 
 class Valve:
     """The valve class represents a valve connetcted to a specific irrigation loop."""
-
 
     def __init__(self, name: str, pin: int, measurement: str, main_config: dict):
         """Constructs the object.
@@ -301,7 +311,6 @@ class Valve:
         # activate the pump
         GPIO.output(self.pin, GPIO.LOW)
 
-
     def deactivate(self):
         """Deactivates the pump: Stops the flow of water."""
 
@@ -328,7 +337,7 @@ class Valve:
                 "time": str(datetime.datetime.now(datetime.timezone.utc)),
                 "fields": {
                     "valve-active": self._active,
-                }
+                },
             }
         ]
 
@@ -348,8 +357,7 @@ class Valve:
         self._write_status()
 
 
-class PumpJob():
-
+class PumpJob:
     def __init__(self, pump: Pump, valve: [Valve, int], duration: [float, int]):
         """
 
@@ -397,9 +405,7 @@ class PumpJob():
 
 
 class WaterTank(SmartSensor):
-    """
-
-    """
+    """ """
 
     def __init__(self, config: dict):
         """
@@ -407,9 +413,9 @@ class WaterTank(SmartSensor):
         :param config: (mandatory, dict) the dictionary defining the pump tank
         """
 
-        self.level_warning = config['low-level-warning']
-        self.level_alarm = config['low-level-alarm']
-        self.level_sensor = SeeedUltraSonicRanger(config['gpio-pin'])
+        self.level_warning = config["low-level-warning"]
+        self.level_alarm = config["low-level-alarm"]
+        self.level_sensor = SeeedUltraSonicRanger(config["gpio-pin"])
 
     def get_level(self):
         """Get the tank level, low level warning and low level alarm.
@@ -434,9 +440,9 @@ class WaterTank(SmartSensor):
         level, warning, alarm = self.get_level()
 
         return {
-            'level': level,
-            'low-level-warning': warning,
-            'low-level-alarm': alarm,
+            "level": level,
+            "low-level-warning": warning,
+            "low-level-alarm": alarm,
         }
 
     @staticmethod
@@ -450,19 +456,25 @@ class WaterTank(SmartSensor):
         """
 
         # check if everything is available
-        sections = ['gpio-pin', 'low-level-warning', 'low-level-alarm']
+        sections = ["gpio-pin", "low-level-warning", "low-level-alarm"]
         for section in sections:
             if section not in config:
-                raise KeyError(f'Mandatory section {section} is missing in the config.')
+                raise KeyError(f"Mandatory section {section} is missing in the config.")
 
         # check the values of the gpio-pin
-        if config['gpio-pin'] < 4 or config['gpio-pin'] > 27:
-            raise ValueError(f'Can not use gpio-pins {config["gpio-pin"]} as digital input. Check the GPIO layout of '
-                             f'your raspberry. And note that pin 1 & 2 is used for I2C bus.')
+        if config["gpio-pin"] < 4 or config["gpio-pin"] > 27:
+            raise ValueError(
+                f'Can not use gpio-pins {config["gpio-pin"]} as digital input. Check the GPIO layout of '
+                f"your raspberry. And note that pin 1 & 2 is used for I2C bus."
+            )
 
         # check the plausibility of the of the low-level thresholds
-        if config['low-level-alarm'] < 0:
-            raise ValueError('The water tank low level alarm can not be set to a negative value.')
+        if config["low-level-alarm"] < 0:
+            raise ValueError(
+                "The water tank low level alarm can not be set to a negative value."
+            )
 
-        if config['low-level-warning'] < config['low-level-alarm']:
-            raise ValueError('The water tank low level warning can not be smaller than the low level alarm.')
+        if config["low-level-warning"] < config["low-level-alarm"]:
+            raise ValueError(
+                "The water tank low level warning can not be smaller than the low level alarm."
+            )
