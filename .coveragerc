@@ -1,0 +1,5 @@
+[run]
+source = carlos
+
+[coverage:report]
+skip_empty = true

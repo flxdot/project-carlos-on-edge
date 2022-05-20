@@ -1,13 +1,20 @@
 #!/usr/bin/python
 
-import RPi.GPIO as GPIO
-from time import sleep
 from enum import Enum
+from time import sleep
 
-from sensors.auxiliary import SmartSensor
+import RPi.GPIO as GPIO
 
-def set_max_priority(): pass
-def set_default_priority(): pass
+from legacy.sensors.auxiliary import SmartSensor
+
+
+def set_max_priority():
+    pass
+
+
+def set_default_priority():
+    pass
+
 
 def validate_config(config: dict):
     """Checks if all required parameter are available in the passed config dictionary.
@@ -18,25 +25,29 @@ def validate_config(config: dict):
     :raises KeyError: When a mandatory key in the config dictionary is not available
     """
 
-    if 'type' not in config.keys():
-        raise KeyError('Config dictionary is missing mandatory field ''type''.')
+    if "type" not in config.keys():
+        raise KeyError("Config dictionary is missing mandatory field " "type" ".")
 
     # check if the DHT type is correct
     try:
-        DHTtype.from_val(config['type'])
+        DHTtype.from_val(config["type"])
 
         # check if the gpio-pin property is available
-        if 'gpio-pin' not in config.keys():
-            raise KeyError('Config dictionary is missing mandatory field ''gpio-pin''.')
+        if "gpio-pin" not in config.keys():
+            raise KeyError(
+                "Config dictionary is missing mandatory field " "gpio-pin" "."
+            )
 
-        if config['gpio-pin'] not in list(range(1, 27)):
-            the_pin = config['gpio-pin']
-            raise ValueError(f'{the_pin} is not a valid GPIO pin. Please select any from 1 to 27.')
+        if config["gpio-pin"] not in list(range(1, 27)):
+            the_pin = config["gpio-pin"]
+            raise ValueError(
+                f"{the_pin} is not a valid GPIO pin. Please select any from 1 to 27."
+            )
 
     except TypeError:
-        raise ValueError('Temperature sensor type invalid.')
+        raise ValueError("Temperature sensor type invalid.")
     except ValueError:
-        raise ValueError('Temperature sensor type invalid.')
+        raise ValueError("Temperature sensor type invalid.")
 
 
 def get_sensor(config: dict):
@@ -48,8 +59,7 @@ def get_sensor(config: dict):
     """
 
     try:
-        return DHT(dht_type=DHTtype.from_val(config['type']),
-                   pin=config['gpio-pin'])
+        return DHT(dht_type=DHTtype.from_val(config["type"]), pin=config["gpio-pin"])
     except TypeError:
         return None
     except ValueError:
@@ -79,7 +89,9 @@ class DHTtype(Enum):
         elif isinstance(val, (int, float)):
             return DHTtype.from_num(val)
         else:
-            TypeError(f'Can not determine the DHT type from input of type {type(val).__name__}.')
+            TypeError(
+                f"Can not determine the DHT type from input of type {type(val).__name__}."
+            )
 
     @classmethod
     def from_str(cls, val: str):
@@ -92,18 +104,22 @@ class DHTtype(Enum):
         """
 
         if not isinstance(val, str):
-            raise TypeError(f'This method is used to determine the DHT type based on a str input. You passed a value of '
-                            f'type ''{type(val).__name__}''.')
+            raise TypeError(
+                f"This method is used to determine the DHT type based on a str input. You passed a value of "
+                f"type "
+                "{type(val).__name__}"
+                "."
+            )
 
         # allow case insensitive
         val = val.lower()
 
-        if val == '11' or val == 'dht11':
+        if val == "11" or val == "dht11":
             return DHTtype.DHT11
-        elif val == '22' or val == 'dht22':
+        elif val == "22" or val == "dht22":
             return DHTtype.DHT22
         else:
-            raise ValueError(f'Unknown DHT Type ''{val}''.')
+            raise ValueError(f"Unknown DHT Type " "{val}" ".")
 
     @classmethod
     def from_num(cls, val: [float, int]):
@@ -117,8 +133,11 @@ class DHTtype(Enum):
 
         if not isinstance(val, (int, float)):
             raise TypeError(
-                f'This method is used to determine the DHT type based on a int or float input. You passed a value of '
-                f'type ''{type(val).__name__}''.')
+                f"This method is used to determine the DHT type based on a int or float input. You passed a value of "
+                f"type "
+                "{type(val).__name__}"
+                "."
+            )
 
         # allow case insensitive
         val = val.lower()
@@ -128,7 +147,7 @@ class DHTtype(Enum):
         elif val == 22:
             return DHTtype.DHT22
         else:
-            raise ValueError(f'Unknown DHT Type ''{val}''.')
+            raise ValueError(f"Unknown DHT Type " "{val}" ".")
 
 
 class DHT(SmartSensor):
@@ -179,10 +198,10 @@ class DHT(SmartSensor):
         set_max_priority()
 
         GPIO.output(self.pin, GPIO.HIGH)
-        sleep(.2)
+        sleep(0.2)
 
         GPIO.output(self.pin, GPIO.LOW)
-        sleep(.018)
+        sleep(0.018)
 
         GPIO.setup(self.pin, GPIO.IN)
 
@@ -231,14 +250,14 @@ class DHT(SmartSensor):
         average_cnt = total_cnt / (self.PULSES_CNT - 1)
         # print("low level average loop = {}".format(average_cnt))
 
-        data = ''
+        data = ""
         for i in range(3, 2 * self.PULSES_CNT, 2):
             if pulse_cnt[i] > average_cnt:
-                data += '1'
+                data += "1"
             else:
-                data += '0'
+                data += "0"
 
-        data0 = int(data[0: 8], 2)
+        data0 = int(data[0:8], 2)
         data1 = int(data[8:16], 2)
         data2 = int(data[16:24], 2)
         data3 = int(data[24:32], 2)
@@ -246,7 +265,7 @@ class DHT(SmartSensor):
 
         if fix_crc and data4 != ((data0 + data1 + data2 + data3) & 0xFF):
             data4 = data4 ^ 0x01
-            data = data[0: self.PULSES_CNT - 2] + ('1' if data4 & 0x01 else '0')
+            data = data[0 : self.PULSES_CNT - 2] + ("1" if data4 & 0x01 else "0")
 
         if data4 == ((data0 + data1 + data2 + data3) & 0xFF):
             if self._dht_type == DHTtype.DHT11:
@@ -271,7 +290,6 @@ class DHT(SmartSensor):
         self._last_humi, self._last_temp = humi, temp
         return humi, temp
 
-
     def measure(self):
         """Performs a measurement and returns all available values in a dictionary.
         The keys() are the names of the measurement and the values the corresponding values.
@@ -281,5 +299,5 @@ class DHT(SmartSensor):
 
         humi, temp = self.read()
         if humi == 0 and temp == 0:
-            return {'humidity': None, 'temperature': None}
-        return {'humidity': float(humi), 'temperature': float(temp)}
+            return {"humidity": None, "temperature": None}
+        return {"humidity": float(humi), "temperature": float(temp)}

@@ -1,11 +1,13 @@
 #!/usr/bin/python
 
 import time
-from sensors.light import validate_config as validate_light_config
-from sensors.light import get_sensor as get_light_sensor
-from sensors.temperature import validate_config as validate_temp_config
-from sensors.temperature import get_sensor as get_temp_sensor
+
 from ifcInflux import InfluxAttachedSensor, get_client
+from sensors.light import get_sensor as get_light_sensor
+from sensors.light import validate_config as validate_light_config
+from sensors.temperature import get_sensor as get_temp_sensor
+from sensors.temperature import validate_config as validate_temp_config
+
 
 class Environment(object):
     """The Environment will record the environment conditions of the plants like Sunlight intensity, UV index,
@@ -24,21 +26,29 @@ class Environment(object):
         self.sensors = list()
 
         # init all environment sensors
-        if 'environment' in config.keys():
-            env_cfg = config['environment']
+        if "environment" in config.keys():
+            env_cfg = config["environment"]
 
             # uv-light sensor
-            if 'uv-light' in env_cfg.keys():
-                the_sensor = InfluxAttachedSensor(name='uv-light', period=SENSOR_PERIOD, measurement='environment',
-                                                  sensor=get_light_sensor(env_cfg['uv-light']),
-                                                  dbclient=get_client(config))
+            if "uv-light" in env_cfg.keys():
+                the_sensor = InfluxAttachedSensor(
+                    name="uv-light",
+                    period=SENSOR_PERIOD,
+                    measurement="environment",
+                    sensor=get_light_sensor(env_cfg["uv-light"]),
+                    dbclient=get_client(config),
+                )
                 self.sensors.append(the_sensor)
 
             # temp & humidity sensor
-            if 'temp-humi' in env_cfg.keys():
-                the_sensor = InfluxAttachedSensor(name='temp-humi', period=SENSOR_PERIOD, measurement='environment',
-                                                  sensor=get_temp_sensor(env_cfg['temp-humi']),
-                                                  dbclient=get_client(config))
+            if "temp-humi" in env_cfg.keys():
+                the_sensor = InfluxAttachedSensor(
+                    name="temp-humi",
+                    period=SENSOR_PERIOD,
+                    measurement="environment",
+                    sensor=get_temp_sensor(env_cfg["temp-humi"]),
+                    dbclient=get_client(config),
+                )
                 self.sensors.append(the_sensor)
 
             # todo: weather forecast
@@ -72,18 +82,18 @@ class Environment(object):
         """
 
         # check if the environment key is available in the config
-        if 'environment' not in config.keys():
+        if "environment" not in config.keys():
             return None
 
         # check the config
-        env_cfg = config['environment']
+        env_cfg = config["environment"]
 
         # uv-light sensor
-        if 'uv-light' in env_cfg.keys():
-            validate_light_config(env_cfg['uv-light'])
+        if "uv-light" in env_cfg.keys():
+            validate_light_config(env_cfg["uv-light"])
 
         # temp & humidity sensor
-        if 'temp-humi' in env_cfg.keys():
-            validate_temp_config(env_cfg['temp-humi'])
+        if "temp-humi" in env_cfg.keys():
+            validate_temp_config(env_cfg["temp-humi"])
 
         # todo: weather forecast

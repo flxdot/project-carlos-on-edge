@@ -1,7 +1,8 @@
 #!/usr/bin/python
 
-from sensors.auxiliary import SmartSensor
-from sensors.ad_converter import ADConverter
+from legacy.sensors.ad_converter import ADConverter
+from legacy.sensors.auxiliary import SmartSensor
+
 
 class CapacitiveSoilMoistureSensor(SmartSensor):
     """This class is an interface to the Capacitive Soil Moisture Sensor v1.2"""
@@ -20,7 +21,6 @@ class CapacitiveSoilMoistureSensor(SmartSensor):
 
     # the max voltage which will be interpreted as valid reading
     __MAX_VALID_VOLTAGE = 3
-
 
     def __init__(self, address, channel, sps=250):
         """Constructor
@@ -45,14 +45,20 @@ class CapacitiveSoilMoistureSensor(SmartSensor):
         :return:
         """
 
-        return 1 - ((v - self.__MIN_VOLTAGE) / (self.__MAX_VOLTAGE - self.__MIN_VOLTAGE))
-
+        return 1 - (
+            (v - self.__MIN_VOLTAGE) / (self.__MAX_VOLTAGE - self.__MIN_VOLTAGE)
+        )
 
     def _read(self):
         """Reads the sensor voltage."""
 
         # convert from mV to V
-        return self._adconv.readADCSingleEnded(channel=self._chan, pga=self.__PGA, sps=self._sps) / 1000
+        return (
+            self._adconv.readADCSingleEnded(
+                channel=self._chan, pga=self.__PGA, sps=self._sps
+            )
+            / 1000
+        )
 
     def readMoistureLevel(self):
         """Returns the moisture level from 0-1.
@@ -80,12 +86,12 @@ class CapacitiveSoilMoistureSensor(SmartSensor):
         volts = self._read()
         # check if the values are within boundaries one would expect
         if volts < self.__MIN_VALID_VOLTAGE or volts > self.__MAX_VALID_VOLTAGE:
-            return {'volts': None, 'percentage': None}
+            return {"volts": None, "percentage": None}
 
         # convert the volts to moisture level
         moisture = self._convertVoltageToMoisture(volts)
 
-        return {'volts': float(volts), 'percentage': float(moisture)}
+        return {"volts": float(volts), "percentage": float(moisture)}
 
     @classmethod
     def from_config(cls, config: dict):
@@ -95,7 +101,7 @@ class CapacitiveSoilMoistureSensor(SmartSensor):
         :return: CapacitiveSoilMoistureSensor
         """
 
-        return cls(address=config['i2c-address'], channel=config['channel'])
+        return cls(address=config["i2c-address"], channel=config["channel"])
 
     @staticmethod
     def validate_config(config: dict):
@@ -110,17 +116,17 @@ class CapacitiveSoilMoistureSensor(SmartSensor):
         # i2c-address ######################
 
         # key existing?
-        if 'i2c-address' not in config.keys():
-            raise KeyError('Config is missing mandatory field ''i2c-address''.')
+        if "i2c-address" not in config.keys():
+            raise KeyError("Config is missing mandatory field " "i2c-address" ".")
 
         # check value
-        ADConverter.validate_config(config['i2c-address'])
+        ADConverter.validate_config(config["i2c-address"])
 
         # channel ##########################
 
         # key existing?
-        if 'channel' not in config.keys():
-            raise KeyError('Config is missing mandatory field ''channel''.')
+        if "channel" not in config.keys():
+            raise KeyError("Config is missing mandatory field " "channel" ".")
 
         # check value
-        ADConverter._types[config['i2c-address']].validate_channel(config['channel'])
+        ADConverter._types[config["i2c-address"]].validate_channel(config["channel"])
